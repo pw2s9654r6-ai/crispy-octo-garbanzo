@@ -372,6 +372,28 @@ document.body.appendChild(div);
 setTimeout(()=>div.remove(),700);
 }
 
+function renderButtons(){
+const container=document.getElementById("buttons");
+container.innerHTML="";
+
+if(state==="prep"){
+container.innerHTML=
+`<button class="secondary" onclick="endTask()">中断</button>`;
+}
+
+if(state==="choice"){
+container.innerHTML=
+`<button class="primary" onclick="continueTask()">続ける</button>
+<button class="secondary" onclick="completeTask()">終了</button>`;
+}
+
+if(state==="work"){
+container.innerHTML=
+`<button class="secondary" onclick="completeTask()">終了</button>`;
+}
+}
+
+
 function beep(){
 let audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 for(let i=0;i<4;i++){
