@@ -29,7 +29,6 @@ background:var(--bg);
 color:var(--text);
 }
 
-/* 画面 */
 .screen{
 position:absolute;
 top:0;
@@ -52,7 +51,6 @@ justify-content:center;
 height:100%;
 }
 
-/* タイマー */
 .circle-container{
 position:relative;
 width:280px;
@@ -69,7 +67,6 @@ font-size:52px;
 font-weight:600;
 }
 
-/* ボタン */
 button{
 border:none;
 border-radius:999px;
@@ -89,7 +86,15 @@ background:#ccc;
 color:#333;
 }
 
-/* タブバー */
+.link-btn{
+background:none;
+border:none;
+color:var(--accent);
+text-decoration:underline;
+font-size:16px;
+margin-top:10px;
+}
+
 .tabbar{
 position:absolute;
 bottom:0;
@@ -113,18 +118,12 @@ cursor:pointer;
 background:var(--accent);
 }
 
-/* 記録 */
 .task{
 padding:12px;
 border-bottom:1px solid #ddd;
-display:flex;
-justify-content:space-between;
-align-items:center;
 }
 
-.complete{
-color:var(--muted);
-}
+.complete{color:var(--muted);}
 
 input{
 padding:12px;
@@ -156,8 +155,15 @@ animation:pop 0.7s ease-out forwards;
 <!-- タイトル画面 -->
 <div id="titleScreen" class="screen active center">
 <h2>作業タイトル</h2>
-<input id="titleInput" placeholder="タイトル">
+<input id="titleInput" placeholder="例：レース分析">
 <button class="primary" onclick="startPrep()">開始</button>
+<button class="link-btn" onclick="showResume()">作業を再開する</button>
+</div>
+
+<!-- 再開画面 -->
+<div id="resumeScreen" class="screen">
+<h2>未完タスク</h2>
+<div id="resumeList"></div>
 </div>
 
 <!-- タイマー画面 -->
@@ -181,15 +187,14 @@ animation:pop 0.7s ease-out forwards;
 <p>（拡張予定）</p>
 </div>
 
-<!-- タブバー -->
 <div class="tabbar">
-<div onclick="showScreen('timerScreen')" class="active-tab">タイマー</div>
+<div onclick="handleTimerTab()" class="active-tab">タイマー</div>
 <div onclick="showScreen('recordScreen')">記録</div>
 <div onclick="showScreen('calendarScreen')">カレンダー</div>
 </div>
 
 <script>
-let state="prep";
+let state=null;
 let totalSeconds=0;
 let currentTask=null;
 let animationId=null;
@@ -201,7 +206,6 @@ const ctx=canvas.getContext("2d");
 
 function drawCircle(progress){
 ctx.clearRect(0,0,280,280);
-
 ctx.lineWidth=12;
 ctx.strokeStyle="#ddd";
 ctx.beginPath();
@@ -223,17 +227,11 @@ document.getElementById("timeDisplay").innerText=
 `${min}:${sec.toString().padStart(2,"0")}`;
 }
 
-function startPrep(){
-const title=document.getElementById("titleInput").value.trim();
+function startPrep(titleOverride=null){
+const title=titleOverride || document.getElementById("titleInput").value.trim();
 if(!title)return;
 
-currentTask={
-title:title,
-status:"active",
-seconds:0,
-date:new Date().toISOString()
-};
-
+currentTask={title,status:"active",seconds:0};
 totalSeconds=0;
 state="prep";
 
@@ -255,7 +253,6 @@ updateDisplay();
 if(state==="prep"){
 let progress=Math.min(elapsed/prepDuration,1);
 drawCircle(progress);
-
 if(elapsed>=prepDuration){
 state="choice";
 beep();
@@ -264,9 +261,7 @@ return;
 }
 }
 
-if(state==="work"){
-drawCircle(1);
-}
+if(state==="work") drawCircle(1);
 
 animationId=requestAnimationFrame(animationLoop);
 }
@@ -293,22 +288,31 @@ showConfetti();
 reset();
 }
 
-function renderButtons(){
-let c=document.getElementById("buttons");
-c.innerHTML="";
-if(state==="prep"){
-c.innerHTML=`<button class="secondary" onclick="endTask()">終了</button>`;
+function handleTimerTab(){
+if(state==="prep"||state==="work"){
+showScreen("timerScreen");
+}else{
+showScreen("titleScreen");
 }
-else if(state==="choice"){
-c.innerHTML=
-`<button class="primary" onclick="continueTask()">続行</button>
-<button class="secondary" onclick="endTask()">終了</button>`;
 }
-else if(state==="work"){
-c.innerHTML=
-`<button class="primary" onclick="completeTask()">完了</button>
-<button class="secondary" onclick="endTask()">終了</button>`;
+
+function showResume(){
+showScreen("resumeScreen");
+renderResume();
 }
+
+function renderResume(){
+let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+let list=document.getElementById("resumeList");
+list.innerHTML="";
+tasks.filter(t=>t.status==="incomplete")
+.forEach(t=>{
+let div=document.createElement("div");
+div.className="task";
+div.innerHTML=`${t.title}`;
+div.onclick=()=>startPrep(t.title);
+list.appendChild(div);
+});
 }
 
 function saveTask(){
@@ -321,13 +325,6 @@ function renderRecords(){
 let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
 let list=document.getElementById("recordList");
 list.innerHTML="";
-
-tasks.sort((a,b)=>{
-if(a.status==="incomplete" && b.status==="complete")return -1;
-if(a.status==="complete" && b.status==="incomplete")return 1;
-return 0;
-});
-
 tasks.forEach((t,i)=>{
 let div=document.createElement("div");
 div.className="task "+(t.status==="complete"?"complete":"");
@@ -349,21 +346,10 @@ function showScreen(id){
 document.querySelectorAll(".screen")
 .forEach(s=>s.classList.remove("active"));
 document.getElementById(id).classList.add("active");
-
-document.querySelectorAll(".tabbar div")
-.forEach(t=>t.classList.remove("active-tab"));
-
-if(id==="timerScreen")
-document.querySelectorAll(".tabbar div")[0].classList.add("active-tab");
-if(id==="recordScreen")
-document.querySelectorAll(".tabbar div")[1].classList.add("active-tab");
-if(id==="calendarScreen")
-document.querySelectorAll(".tabbar div")[2].classList.add("active-tab");
-
-if(id==="recordScreen")renderRecords();
 }
 
 function reset(){
+state=null;
 showScreen("titleScreen");
 document.getElementById("titleInput").value="";
 }
@@ -385,9 +371,6 @@ osc.start(audioCtx.currentTime+i*0.25);
 osc.stop(audioCtx.currentTime+i*0.25+0.15);
 }
 }
-
-drawCircle(0);
-updateDisplay();
 </script>
 
 </body>
