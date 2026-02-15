@@ -15,7 +15,7 @@
 --bg:#ECECEC;
 --text:#222;
 --muted:#888;
---border:#555; /* 濃いグレーの枠線 */
+--border:#555;
 }
 
 html,body{
@@ -53,9 +53,9 @@ height:100%;
 
 .circle-container{
 position:relative;
-width:280px;
-height:280px;
-margin:40px auto;
+width:260px;
+height:260px;
+margin-bottom: 20px;
 }
 
 .time{
@@ -108,35 +108,336 @@ grid-template-columns: repeat(7, 1fr);
 border-top: 1px solid var(--border);
 border-left: 1px solid var(--border);
 background: var(--bg);
+width: 100%;
 }
 
 .calendar-day {
-aspect-ratio: 1 / 1.2;
+aspect-ratio: 1 / 1.1;
 border-right: 1px solid var(--border);
 border-bottom: 1px solid var(--border);
-padding: 4px;
-position: relative;
+padding: 2px;
 display: flex;
 flex-direction: column;
 align-items: center;
+overflow: hidden;
 }
 
 .day-num {
-font-size: 12px;
+font-size: 11px;
 font-weight: bold;
-margin-bottom: 4px;
+margin-bottom: 2px;
+width: 100%;
+text-align: left;
+padding-left: 2px;
 }
 
 .has-record {
 background-color: var(--accent);
 color: #fff;
-border-radius: 8px;
+border-radius: 4px;
 width: 90%;
-height: 60%;
+height: 70%;
 display: flex;
 align-items: center;
 justify-content: center;
-font-size: 10px;
-text-align: center;
-line-height: 1.1;
-padding: 2px;
+font-size: 8px;
+word-break: break-all;
+line-height: 1;
+padding: 1px;
+}
+
+.task{ padding:12px; border-bottom:1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-size:16px; margin-bottom:20px; }
+.particle { position: fixed; top: 50%; left: 50%; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 9999; }
+</style>
+</head>
+
+<body>
+
+<div id="titleScreen" class="screen active center">
+<h2>作業タイトル</h2>
+<input id="titleInput" placeholder="タイトルを入力">
+<button class="primary" onclick="startPrep()">開始</button>
+<button class="link-btn" style="background:none; color:var(--accent); text-decoration:underline; border:none; cursor:pointer;" onclick="showResume()">未完タスクを再開</button>
+</div>
+
+<div id="resumeScreen" class="screen">
+<h2>未完タスク</h2>
+<div id="resumeList"></div>
+<button class="secondary" onclick="reset()">戻る</button>
+</div>
+
+<div id="timerScreen" class="screen">
+<div class="center">
+    <div class="circle-container">
+        <canvas id="canvas" width="260" height="260"></canvas>
+        <div class="time" id="timeDisplay">1:00</div>
+    </div>
+    <div id="buttons" style="text-align:center;"></div>
+</div>
+</div>
+
+<div id="recordScreen" class="screen">
+<h2>記録一覧</h2>
+<div id="recordList"></div>
+</div>
+
+<div id="calendarScreen" class="screen">
+<h2 id="calendarMonth">2026年 2月</h2>
+<div class="calendar-grid" id="calendarGrid"></div>
+</div>
+
+<div class="tabbar">
+<div id="tabTimer" class="active-tab" onclick="handleTimerTab()">タイマー</div>
+<div id="tabRecord" onclick="openRecordTab()">記録</div>
+<div id="tabCalendar" onclick="openCalendarTab()">カレンダー</div>
+</div>
+
+<script>
+let state=null;
+let totalSeconds=0;
+let currentTask=null;
+let animationId=null;
+let startTimestamp=null;
+const prepDuration=60;
+
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+
+function drawCircle(progress){
+    ctx.clearRect(0,0,260,260);
+    ctx.lineWidth=12;
+    ctx.strokeStyle="#ddd";
+    ctx.beginPath();
+    ctx.arc(130,130,110,0,Math.PI*2);
+    ctx.stroke();
+    ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent');
+    ctx.beginPath();
+    ctx.arc(130,130,110,-Math.PI/2,(Math.PI*2*progress)-Math.PI/2);
+    ctx.stroke();
+}
+
+function updateDisplay(seconds){
+    let min=Math.floor(seconds/60);
+    let sec=seconds%60;
+    document.getElementById("timeDisplay").innerText=`${min}:${sec.toString().padStart(2,"0")}`;
+}
+
+function startPrep(titleOverride=null){
+    const title=titleOverride || document.getElementById("titleInput").value.trim();
+    if(!title) return;
+    
+    // 日付を「YYYY-MM-DD」形式で保存
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+    
+    currentTask={title, status:"active", seconds:0, date: dateStr};
+    totalSeconds=0;
+    state="prep";
+    showScreen("timerScreen");
+    renderButtons();
+    startTimestamp=performance.now();
+    animationLoop();
+}
+
+function animationLoop(){
+    const now=performance.now();
+    const elapsed=(now-startTimestamp)/1000;
+    
+    if(state==="prep"){
+        let progress=Math.min(elapsed/prepDuration,1);
+        drawCircle(progress);
+        updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
+        if(elapsed>=prepDuration){
+            state="choice";
+            totalSeconds = 60; // 1分経過確定
+            beep();
+            renderButtons();
+            cancelAnimationFrame(animationId);
+            return;
+        }
+    } else if(state==="work"){
+        totalSeconds = Math.floor(elapsed);
+        drawCircle(1);
+        updateDisplay(totalSeconds);
+    }
+    currentTask.seconds = totalSeconds;
+    animationId = requestAnimationFrame(animationLoop);
+}
+
+function continueTask(){
+    state="work";
+    // 1分(60秒)時点から再開するようにタイムスタンプを調整
+    startTimestamp = performance.now() - (60 * 1000); 
+    renderButtons();
+    animationLoop();
+}
+
+function endTask(){
+    cancelAnimationFrame(animationId);
+    currentTask.status="incomplete";
+    saveTask();
+    reset();
+}
+
+function completeTask(){
+    cancelAnimationFrame(animationId);
+    currentTask.status="complete";
+    saveTask();
+    fireConfetti();
+    reset();
+}
+
+function saveTask(){
+    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+    tasks.unshift(currentTask);
+    localStorage.setItem("tasks",JSON.stringify(tasks));
+}
+
+function handleTimerTab(){
+    updateTabs('tabTimer');
+    showScreen(state ? "timerScreen" : "titleScreen");
+}
+
+function openRecordTab(){
+    updateTabs('tabRecord');
+    showScreen("recordScreen");
+    renderRecords();
+}
+
+function openCalendarTab(){
+    updateTabs('tabCalendar');
+    showScreen("calendarScreen");
+    renderCalendar();
+}
+
+function renderCalendar(){
+    const grid = document.getElementById("calendarGrid");
+    const monthLabel = document.getElementById("calendarMonth");
+    grid.innerHTML = "";
+    
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    monthLabel.innerText = `${year}年 ${month + 1}月`;
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
+
+    for(let i=0; i<firstDay; i++){
+        const div = document.createElement("div");
+        div.className = "calendar-day";
+        grid.appendChild(div);
+    }
+
+    for(let d=1; d<=daysInMonth; d++){
+        const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+        const dayTasks = tasks.filter(t => t.date === dateStr && t.status === "complete");
+        
+        const div = document.createElement("div");
+        div.className = "calendar-day";
+        div.innerHTML = `<span class="day-num">${d}</span>`;
+        
+        if(dayTasks.length > 0){
+            const mark = document.createElement("div");
+            mark.className = "has-record";
+            mark.innerText = dayTasks[0].title;
+            div.appendChild(mark);
+        }
+        grid.appendChild(div);
+    }
+}
+
+function renderRecords(){
+    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+    let list=document.getElementById("recordList");
+    list.innerHTML="";
+    tasks.forEach((t,i)=>{
+        let div=document.createElement("div");
+        div.className="task";
+        div.innerHTML=`<div><div>${t.title}</div><small>${Math.floor(t.seconds/60)}分${t.seconds%60}秒 - ${t.status}</small></div>
+        <button class="secondary" style="padding:5px 10px; font-size:12px;" onclick="deleteTask(${i})">削除</button>`;
+        list.appendChild(div);
+    });
+}
+
+function deleteTask(i){
+    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+    tasks.splice(i,1);
+    localStorage.setItem("tasks",JSON.stringify(tasks));
+    renderRecords();
+}
+
+function showScreen(id){
+    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+}
+
+function updateTabs(activeId){
+    document.querySelectorAll('.tabbar div').forEach(div => div.classList.remove('active-tab'));
+    document.getElementById(activeId).classList.add('active-tab');
+}
+
+function reset(){
+    state=null;
+    showScreen("titleScreen");
+    document.getElementById("titleInput").value="";
+    updateTabs('tabTimer');
+}
+
+function fireConfetti(){
+    const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#F473B9'];
+    for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.classList.add('particle');
+        p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = 60 + Math.random() * 120;
+        const tx = Math.cos(angle) * velocity;
+        const ty = Math.sin(angle) * velocity;
+        document.body.appendChild(p);
+        const anim = p.animate([
+            { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
+            { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0)`, opacity: 0 }
+        ], { duration: 800, easing: 'ease-out' });
+        anim.onfinish = () => p.remove();
+    }
+}
+
+function renderButtons(){
+    const container=document.getElementById("buttons");
+    container.innerHTML="";
+    if(state==="prep") container.innerHTML=`<button class="secondary" onclick="endTask()">中断</button>`;
+    if(state==="choice") container.innerHTML=`<button class="primary" onclick="continueTask()">続ける</button><button class="secondary" onclick="completeTask()">終了</button>`;
+    if(state==="work") container.innerHTML=`<button class="secondary" onclick="completeTask()">終了</button>`;
+}
+
+function beep(){
+    try {
+        let audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+        for(let i=0;i<4;i++){
+            let osc=audioCtx.createOscillator();
+            osc.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime+i*0.25);
+            osc.stop(audioCtx.currentTime+i*0.25+0.15);
+        }
+    } catch(e) { console.log("Audio error"); }
+}
+
+function showResume(){
+    showScreen("resumeScreen");
+    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+    let list=document.getElementById("resumeList");
+    list.innerHTML="";
+    tasks.filter(t=>t.status==="incomplete").forEach(t=>{
+        let div=document.createElement("div");
+        div.className="task";
+        div.innerHTML=`<span>${t.title}</span>`;
+        div.onclick=()=>startPrep(t.title);
+        list.appendChild(div);
+    });
+}
+</script>
+</body>
+</html>
