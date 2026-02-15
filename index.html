@@ -6,8 +6,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Focus Timer">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="format-detection" content="telephone=no">
-<meta name="robots" content="noindex, nofollow">
 <title>Focus Timer</title>
 
 <style>
@@ -17,6 +15,7 @@
 --bg:#ECECEC;
 --text:#222;
 --muted:#888;
+--border:#555; /* 濃いグレーの枠線 */
 }
 
 html,body{
@@ -34,11 +33,12 @@ position:absolute;
 top:0;
 left:0;
 width:100%;
-height:100%;
+height:calc(100% - 60px);
 background:var(--bg);
 display:none;
 padding:20px;
 box-sizing:border-box;
+overflow-y: auto;
 }
 
 .active{display:block;}
@@ -55,7 +55,7 @@ height:100%;
 position:relative;
 width:280px;
 height:280px;
-margin:110px auto 40px auto;
+margin:40px auto;
 }
 
 .time{
@@ -65,7 +65,7 @@ left:50%;
 transform:translate(-50%,-50%);
 font-size:52px;
 font-weight:600;
-font-variant-numeric: tabular-nums; /* 数字の幅を等しくしてブレを防ぐ */
+font-variant-numeric: tabular-nums;
 }
 
 button{
@@ -77,24 +77,8 @@ margin:8px;
 cursor:pointer;
 }
 
-.primary{
-background:var(--accent);
-color:#fff;
-}
-
-.secondary{
-background:#ccc;
-color:#333;
-}
-
-.link-btn{
-background:none;
-border:none;
-color:var(--accent);
-text-decoration:underline;
-font-size:16px;
-margin-top:10px;
-}
+.primary{ background:var(--accent); color:#fff; }
+.secondary{ background:#ccc; color:#333; }
 
 .tabbar{
 position:absolute;
@@ -103,7 +87,6 @@ width:100%;
 height:60px;
 display:flex;
 background:var(--accent-light);
-color:#fff;
 }
 
 .tabbar div{
@@ -113,347 +96,47 @@ align-items:center;
 justify-content:center;
 font-weight:600;
 cursor:pointer;
+color: var(--text);
 }
 
-.active-tab{
-background:var(--accent);
+.active-tab{ background:var(--accent); color:#fff !important; }
+
+/* カレンダー専用スタイル */
+.calendar-grid {
+display: grid;
+grid-template-columns: repeat(7, 1fr);
+border-top: 1px solid var(--border);
+border-left: 1px solid var(--border);
+background: var(--bg);
 }
 
-.task{
-padding:12px;
-border-bottom:1px solid #ddd;
+.calendar-day {
+aspect-ratio: 1 / 1.2;
+border-right: 1px solid var(--border);
+border-bottom: 1px solid var(--border);
+padding: 4px;
+position: relative;
 display: flex;
-justify-content: space-between;
+flex-direction: column;
 align-items: center;
 }
 
-.complete{color:var(--muted);}
-
-input{
-padding:12px;
-border-radius:12px;
-border:1px solid #ccc;
-width:80%;
-font-size:16px;
-margin-bottom:20px;
+.day-num {
+font-size: 12px;
+font-weight: bold;
+margin-bottom: 4px;
 }
 
-/* クラッカーエフェクト用のスタイル */
-.particle {
-position: fixed;
-top: 50%;
-left: 50%;
-width: 8px;
-height: 8px;
-border-radius: 50%;
-pointer-events: none;
-z-index: 9999;
-}
-</style>
-</head>
-
-<body>
-
-<div id="titleScreen" class="screen active center">
-<h2>作業タイトル</h2>
-<input id="titleInput" placeholder="タイトル">
-<button class="primary" onclick="startPrep()">開始</button>
-<button class="link-btn" onclick="showResume()">作業を再開する</button>
-</div>
-
-<div id="resumeScreen" class="screen">
-<h2>未完タスク</h2>
-<div id="resumeList"></div>
-</div>
-
-<div id="timerScreen" class="screen">
-<div class="circle-container">
-<canvas id="canvas" width="280" height="280"></canvas>
-<div class="time" id="timeDisplay">1:00</div>
-</div>
-<div id="buttons" style="text-align:center;"></div>
-</div>
-
-<div id="recordScreen" class="screen">
-<h2>記録</h2>
-<div id="recordList"></div>
-</div>
-
-<div id="calendarScreen" class="screen">
-<h2>カレンダー</h2>
-<p>（拡張予定）</p>
-</div>
-
-<div class="tabbar">
-<div onclick="handleTimerTab()" class="active-tab" id="tabTimer">タイマー</div>
-<div onclick="openRecordTab()" id="tabRecord">記録</div>
-<div onclick="showScreen('calendarScreen')" id="tabCalendar">カレンダー</div>
-</div>
-
-<script>
-let state=null;
-let totalSeconds=0; // 経過時間（秒）
-let currentTask=null;
-let animationId=null;
-let startTimestamp=null;
-const prepDuration=60;
-
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
-
-function drawCircle(progress){
-    ctx.clearRect(0,0,280,280);
-    ctx.lineWidth=12;
-    ctx.strokeStyle="#ddd";
-    ctx.beginPath();
-    ctx.arc(140,140,110,0,Math.PI*2);
-    ctx.stroke();
-
-    ctx.strokeStyle=getComputedStyle(document.documentElement)
-    .getPropertyValue('--accent');
-
-    ctx.beginPath();
-    ctx.arc(140,140,110,-Math.PI/2,(Math.PI*2*progress)-Math.PI/2);
-    ctx.stroke();
-}
-
-function updateDisplay(seconds){
-    let min=Math.floor(seconds/60);
-    let sec=seconds%60;
-    document.getElementById("timeDisplay").innerText=
-    `${min}:${sec.toString().padStart(2,"0")}`;
-}
-
-function startPrep(titleOverride=null){
-    if(animationId){
-        cancelAnimationFrame(animationId);
-        animationId=null;
-    }
-    const title=titleOverride || document.getElementById("titleInput").value.trim();
-    if(!title)return;
-
-    currentTask={title, status:"active", seconds:0};
-    totalSeconds=0;
-    state="prep";
-
-    showScreen("timerScreen");
-    renderButtons();
-    startTimestamp=performance.now();
-    animationLoop();
-}
-
-function animationLoop(){
-    const now=performance.now();
-    const elapsed=(now-startTimestamp)/1000;
-    totalSeconds=Math.floor(elapsed);
-    currentTask.seconds=totalSeconds;
-
-    if(state==="prep"){
-        let progress=Math.min(elapsed/prepDuration,1);
-        drawCircle(progress);
-        
-        // 変更: カウントダウン表示 (残り時間を計算)
-        let remaining = Math.max(0, Math.ceil(prepDuration - elapsed));
-        updateDisplay(remaining);
-
-        if(elapsed>=prepDuration){
-            state="choice";
-            beep();
-            renderButtons();
-            return;
-        }
-    }
-
-    if(state==="work"){
-        drawCircle(1);
-        // 通常のカウントアップ表示
-        updateDisplay(totalSeconds);
-    }
-
-    animationId=requestAnimationFrame(animationLoop);
-}
-
-function continueTask(){
-    if(animationId){
-        cancelAnimationFrame(animationId);
-        animationId=null;
-    }
-
-    state="work";
-    // ここで経過時間をリセットせず、続きからカウントするように調整
-    // prepの60秒は含めないならここでオフセット調整が必要だが、
-    // 今回は単純に続きからカウントする実装にします
-    startTimestamp=performance.now() - (totalSeconds * 1000);
-    renderButtons();
-    animationLoop();
-}
-
-function endTask(){
-    cancelAnimationFrame(animationId);
-    currentTask.status="incomplete";
-    saveTask();
-    reset();
-}
-
-function completeTask(){
-    cancelAnimationFrame(animationId);
-    currentTask.status="complete";
-    saveTask();
-    fireConfetti(); // 変更: エフェクト発火
-    reset();
-}
-
-function handleTimerTab(){
-    updateTabs('tabTimer');
-    if(state==="prep"||state==="work"||state==="choice"){
-        showScreen("timerScreen");
-    }else{
-        showScreen("titleScreen");
-    }
-}
-
-// 追加: 記録タブを開くときの処理
-function openRecordTab(){
-    updateTabs('tabRecord');
-    showScreen("recordScreen");
-    renderRecords(); // ここでリストを再描画することで即時反映させる
-}
-
-function showResume(){
-    showScreen("resumeScreen");
-    renderResume();
-}
-
-function renderResume(){
-    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-    let list=document.getElementById("resumeList");
-    list.innerHTML="";
-    tasks.filter(t=>t.status==="incomplete")
-    .forEach(t=>{
-        let div=document.createElement("div");
-        div.className="task";
-        div.innerHTML=`<span>${t.title}</span> <small>${Math.floor(t.seconds/60)}分経過</small>`;
-        div.onclick=()=>startPrep(t.title);
-        list.appendChild(div);
-    });
-}
-
-function saveTask(){
-    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-    tasks.unshift(currentTask);
-    localStorage.setItem("tasks",JSON.stringify(tasks));
-}
-
-function renderRecords(){
-    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-    let list=document.getElementById("recordList");
-    list.innerHTML="";
-    tasks.forEach((t,i)=>{
-        let div=document.createElement("div");
-        div.className="task "+(t.status==="complete"?"complete":"");
-        
-        let statusText = t.status==="complete" ? "完了" : "中断";
-        div.innerHTML=
-        `<div>
-            <div>${t.title}</div>
-            <small style="color:#888">${Math.floor(t.seconds/60)}分${t.seconds%60}秒 - ${statusText}</small>
-        </div>
-        <button class="secondary" style="font-size:12px; padding:6px 12px; margin:0;" onclick="deleteTask(${i})">削除</button>`;
-        list.appendChild(div);
-    });
-}
-
-function deleteTask(i){
-    let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-    tasks.splice(i,1);
-    localStorage.setItem("tasks",JSON.stringify(tasks));
-    renderRecords();
-}
-
-function showScreen(id){
-    document.querySelectorAll(".screen")
-    .forEach(s=>s.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
-}
-
-function updateTabs(activeId){
-    document.querySelectorAll('.tabbar div').forEach(div => div.classList.remove('active-tab'));
-    if(activeId) document.getElementById(activeId).classList.add('active-tab');
-    else document.querySelectorAll('.tabbar div')[2].classList.add('active-tab'); // カレンダーなど
-}
-
-function reset(){
-    state=null;
-    showScreen("titleScreen");
-    document.getElementById("titleInput").value="";
-    updateTabs('tabTimer');
-}
-
-// 変更: クラッカー風エフェクトの実装
-function fireConfetti(){
-    const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#F473B9'];
-    const particleCount = 40;
-
-    for (let i = 0; i < particleCount; i++) {
-        const p = document.createElement('div');
-        p.classList.add('particle');
-        p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        
-        // ランダムな角度と距離
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = 50 + Math.random() * 150; // 飛び散る距離
-        const tx = Math.cos(angle) * velocity;
-        const ty = Math.sin(angle) * velocity;
-
-        document.body.appendChild(p);
-
-        // Web Animations APIでアニメーション
-        const animation = p.animate([
-            { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
-            { transform: 'translate(-50%, -50%) scale(1.5)', opacity: 1, offset: 0.2 },
-            { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0)`, opacity: 0 }
-        ], {
-            duration: 600 + Math.random() * 400,
-            easing: 'cubic-bezier(0, .9, .57, 1)',
-            fill: 'forwards'
-        });
-
-        animation.onfinish = () => p.remove();
-    }
-}
-
-function renderButtons(){
-    const container=document.getElementById("buttons");
-    container.innerHTML="";
-
-    if(state==="prep"){
-        container.innerHTML=
-        `<button class="secondary" onclick="endTask()">中断</button>`;
-    }
-
-    if(state==="choice"){
-        container.innerHTML=
-        `<button class="primary" onclick="continueTask()">続ける</button>
-        <button class="secondary" onclick="completeTask()">終了</button>`;
-    }
-
-    if(state==="work"){
-        container.innerHTML=
-        `<button class="secondary" onclick="completeTask()">終了</button>`;
-    }
-}
-
-
-function beep(){
-    let audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    for(let i=0;i<4;i++){
-        let osc=audioCtx.createOscillator();
-        osc.connect(audioCtx.destination);
-        osc.start(audioCtx.currentTime+i*0.25);
-        osc.stop(audioCtx.currentTime+i*0.25+0.15);
-    }
-}
-</script>
-
-</body>
-</html>
+.has-record {
+background-color: var(--accent);
+color: #fff;
+border-radius: 8px;
+width: 90%;
+height: 60%;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 10px;
+text-align: center;
+line-height: 1.1;
+padding: 2px;
