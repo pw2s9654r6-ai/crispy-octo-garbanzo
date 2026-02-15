@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Focus Timer">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
 <title>Focus Timer</title>
 
@@ -18,15 +19,17 @@
 --muted:#888;
 }
 
-body{
+html,body{
 margin:0;
+padding:0;
+height:100%;
+overflow:hidden;
 font-family:-apple-system,BlinkMacSystemFont;
 background:var(--bg);
 color:var(--text);
-overflow:hidden;
 }
 
-/* 画面完全分離 */
+/* 画面 */
 .screen{
 position:absolute;
 top:0;
@@ -52,9 +55,9 @@ height:100%;
 /* タイマー */
 .circle-container{
 position:relative;
-width:260px;
-height:260px;
-margin:100px auto 40px auto;
+width:280px;
+height:280px;
+margin:110px auto 40px auto;
 }
 
 .time{
@@ -62,14 +65,15 @@ position:absolute;
 top:50%;
 left:50%;
 transform:translate(-50%,-50%);
-font-size:48px;
+font-size:52px;
 font-weight:600;
 }
 
+/* ボタン */
 button{
 border:none;
 border-radius:999px;
-padding:14px 26px;
+padding:14px 28px;
 font-size:16px;
 margin:8px;
 cursor:pointer;
@@ -136,7 +140,7 @@ position:fixed;
 top:50%;
 left:50%;
 transform:translate(-50%,-50%);
-font-size:40px;
+font-size:42px;
 animation:pop 0.7s ease-out forwards;
 }
 
@@ -152,29 +156,29 @@ animation:pop 0.7s ease-out forwards;
 <!-- タイトル画面 -->
 <div id="titleScreen" class="screen active center">
 <h2>作業タイトル</h2>
-<input id="titleInput" placeholder="例：レース分析">
+<input id="titleInput" placeholder="タイトル">
 <button class="primary" onclick="startPrep()">開始</button>
 </div>
 
 <!-- タイマー画面 -->
 <div id="timerScreen" class="screen">
 <div class="circle-container">
-<canvas id="canvas" width="260" height="260"></canvas>
+<canvas id="canvas" width="280" height="280"></canvas>
 <div class="time" id="timeDisplay">1:00</div>
 </div>
 <div id="buttons" style="text-align:center;"></div>
 </div>
 
-<!-- 記録 -->
+<!-- 記録画面 -->
 <div id="recordScreen" class="screen">
 <h2>記録</h2>
 <div id="recordList"></div>
 </div>
 
-<!-- カレンダー（簡易） -->
+<!-- カレンダー -->
 <div id="calendarScreen" class="screen">
 <h2>カレンダー</h2>
-<p>（後で拡張可能）</p>
+<p>（拡張予定）</p>
 </div>
 
 <!-- タブバー -->
@@ -187,25 +191,28 @@ animation:pop 0.7s ease-out forwards;
 <script>
 let state="prep";
 let totalSeconds=0;
-let interval=null;
 let currentTask=null;
+let animationId=null;
+let startTimestamp=null;
+const prepDuration=60;
 
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
 
 function drawCircle(progress){
-ctx.clearRect(0,0,260,260);
-ctx.lineWidth=10;
+ctx.clearRect(0,0,280,280);
+
+ctx.lineWidth=12;
 ctx.strokeStyle="#ddd";
 ctx.beginPath();
-ctx.arc(130,130,100,0,Math.PI*2);
+ctx.arc(140,140,110,0,Math.PI*2);
 ctx.stroke();
 
 ctx.strokeStyle=getComputedStyle(document.documentElement)
 .getPropertyValue('--accent');
 
 ctx.beginPath();
-ctx.arc(130,130,100,-Math.PI/2,(Math.PI*2*progress)-Math.PI/2);
+ctx.arc(140,140,110,-Math.PI/2,(Math.PI*2*progress)-Math.PI/2);
 ctx.stroke();
 }
 
@@ -229,49 +236,57 @@ date:new Date().toISOString()
 
 totalSeconds=0;
 state="prep";
+
 showScreen("timerScreen");
-drawCircle(0);
-updateDisplay();
-runTimer();
 renderButtons();
+startTimestamp=performance.now();
+animationLoop();
 }
 
-function runTimer(){
-interval=setInterval(()=>{
-totalSeconds++;
-currentTask.seconds++;
+function animationLoop(){
+const now=performance.now();
+const elapsed=(now-startTimestamp)/1000;
+
+totalSeconds=Math.floor(elapsed);
+currentTask.seconds=totalSeconds;
+
 updateDisplay();
 
 if(state==="prep"){
-drawCircle(totalSeconds/60);
-if(totalSeconds>=60){
-clearInterval(interval);
-beep();
+let progress=Math.min(elapsed/prepDuration,1);
+drawCircle(progress);
+
+if(elapsed>=prepDuration){
 state="choice";
+beep();
 renderButtons();
+return;
 }
 }
-else if(state==="work"){
+
+if(state==="work"){
 drawCircle(1);
 }
-},1000);
+
+animationId=requestAnimationFrame(animationLoop);
 }
 
 function continueTask(){
 state="work";
-runTimer();
+startTimestamp=performance.now()-totalSeconds*1000;
 renderButtons();
+animationLoop();
 }
 
 function endTask(){
-clearInterval(interval);
+cancelAnimationFrame(animationId);
 currentTask.status="incomplete";
 saveTask();
 reset();
 }
 
 function completeTask(){
-clearInterval(interval);
+cancelAnimationFrame(animationId);
 currentTask.status="complete";
 saveTask();
 showConfetti();
@@ -279,20 +294,18 @@ reset();
 }
 
 function renderButtons(){
-let container=document.getElementById("buttons");
-container.innerHTML="";
-
+let c=document.getElementById("buttons");
+c.innerHTML="";
 if(state==="prep"){
-container.innerHTML=
-`<button class="secondary" onclick="endTask()">終了</button>`;
+c.innerHTML=`<button class="secondary" onclick="endTask()">終了</button>`;
 }
 else if(state==="choice"){
-container.innerHTML=
+c.innerHTML=
 `<button class="primary" onclick="continueTask()">続行</button>
 <button class="secondary" onclick="endTask()">終了</button>`;
 }
 else if(state==="work"){
-container.innerHTML=
+c.innerHTML=
 `<button class="primary" onclick="completeTask()">完了</button>
 <button class="secondary" onclick="endTask()">終了</button>`;
 }
@@ -318,11 +331,9 @@ return 0;
 tasks.forEach((t,i)=>{
 let div=document.createElement("div");
 div.className="task "+(t.status==="complete"?"complete":"");
-
 div.innerHTML=
 `${t.title} - ${Math.floor(t.seconds/60)}分
 <button onclick="deleteTask(${i})">削除</button>`;
-
 list.appendChild(div);
 });
 }
@@ -366,12 +377,12 @@ setTimeout(()=>div.remove(),700);
 }
 
 function beep(){
-let ctx=new (window.AudioContext||window.webkitAudioContext)();
+let audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 for(let i=0;i<4;i++){
-let osc=ctx.createOscillator();
-osc.connect(ctx.destination);
-osc.start(ctx.currentTime+i*0.25);
-osc.stop(ctx.currentTime+i*0.25+0.15);
+let osc=audioCtx.createOscillator();
+osc.connect(audioCtx.destination);
+osc.start(audioCtx.currentTime+i*0.25);
+osc.stop(audioCtx.currentTime+i*0.25+0.15);
 }
 }
 
