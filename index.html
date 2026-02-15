@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Focus Timer">
+<meta name="robots" content="noindex, nofollow">
+<title>Focus Timer</title>
+
+<style>
+:root{
+--accent:#8ED9B6;
+--accent-light:#CFEFE2;
+--bg:#ECECEC;
+--text:#222;
+--muted:#888;
+}
+
+body{
+margin:0;
+font-family:-apple-system,BlinkMacSystemFont;
+background:var(--bg);
+color:var(--text);
+display:flex;
+flex-direction:column;
+height:100vh;
+}
+
+.screen{
+flex:1;
+display:none;
+padding:20px;
+box-sizing:border-box;
+}
+
+.active{display:block;}
+
+.center{
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+height:100%;
+}
+
+.timer-wrap{
+margin-top:40px;
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+canvas{
+width:260px;
+height:260px;
+}
+
+.time{
+position:absolute;
+font-size:34px;
+font-weight:600;
+}
+
+button{
+border:none;
+border-radius:999px;
+padding:14px 26px;
+font-size:16px;
+margin:8px;
+cursor:pointer;
+}
+
+.primary{
+background:var(--accent);
+color:#fff;
+}
+
+.secondary{
+background:#ccc;
+color:#333;
+}
+
+.tabbar{
+height:60px;
+display:flex;
+background:var(--accent-light);
+color:#fff;
+}
+
+.tabbar div{
+flex:1;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:600;
+cursor:pointer;
+}
+
+.tabbar .active-tab{
+background:var(--accent);
+}
+
+.task{
+padding:10px;
+border-bottom:1px solid #ddd;
+display:flex;
+justify-content:space-between;
+}
+
+.complete{
+color:var(--muted);
+}
+
+.confetti{
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:40px;
+animation:pop 0.7s ease-out forwards;
+}
+
+@keyframes pop{
+0%{opacity:1;transform:translate(-50%,-50%) scale(0.5);}
+100%{opacity:0;transform:translate(-50%,-50%) scale(1.5);}
+}
+
+input{
+padding:12px;
+border-radius:12px;
+border:1px solid #ccc;
+width:80%;
+font-size:16px;
+margin-bottom:20px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="titleScreen" class="screen active center">
+<h2>作業タイトル</h2>
+<input id="titleInput" placeholder="例：レース分析">
+<button class="primary" onclick="startPrep()">開始</button>
+</div>
+
+<div id="timerScreen" class="screen center">
+<div class="timer-wrap">
+<div style="position:relative">
+<canvas id="canvas" width="260" height="260"></canvas>
+<div class="time" id="timeDisplay">1:00</div>
+</div>
+<div id="buttons"></div>
+</div>
+</div>
+
+<div id="recordScreen" class="screen">
+<h2>記録</h2>
+<div id="recordList"></div>
+</div>
+
+<div id="calendarScreen" class="screen">
+<h2>カレンダー</h2>
+<div id="calendar"></div>
+</div>
+
+<div class="tabbar">
+<div onclick="showScreen('timerScreen')" class="active-tab">タイマー</div>
+<div onclick="showScreen('recordScreen')">記録</div>
+<div onclick="showScreen('calendarScreen')">カレンダー</div>
+</div>
+
+<script>
+let state="prep";
+let totalSeconds=0;
+let interval=null;
+let prepSeconds=60;
+let currentTask=null;
+
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+
+function drawCircle(progress){
+ctx.clearRect(0,0,260,260);
+ctx.lineWidth=10;
+ctx.strokeStyle="#ddd";
+ctx.beginPath();
+ctx.arc(130,130,100,0,Math.PI*2);
+ctx.stroke();
+
+ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent');
+ctx.beginPath();
+ctx.arc(130,130,100,-Math.PI/2,(Math.PI*2*progress)-Math.PI/2);
+ctx.stroke();
+}
+
+function updateDisplay(){
+let min=Math.floor(totalSeconds/60);
+let sec=totalSeconds%60;
+document.getElementById("timeDisplay").innerText=
+`${min}:${sec.toString().padStart(2,"0")}`;
+}
+
+function startPrep(){
+const title=document.getElementById("titleInput").value.trim();
+if(!title)return;
+currentTask={title,status:"active",seconds:0};
+totalSeconds=0;
+state="prep";
+showScreen("timerScreen");
+runTimer();
+renderButtons();
+}
+
+function runTimer(){
+interval=setInterval(()=>{
+totalSeconds++;
+currentTask.seconds++;
+updateDisplay();
+drawCircle(state==="prep"? totalSeconds/60 : 1);
+if(state==="prep" && totalSeconds>=60){
+clearInterval(interval);
+beep();
+state="choice";
+renderButtons();
+}
+},1000/30);
+}
+
+function beep(){
+let ctx=new AudioContext();
+for(let i=0;i<4;i++){
+let osc=ctx.createOscillator();
+osc.connect(ctx.destination);
+osc.start(ctx.currentTime+i*0.25);
+osc.stop(ctx.currentTime+i*0.25+0.15);
+}
+}
+
+function renderButtons(){
+let container=document.getElementById("buttons");
+container.innerHTML="";
+if(state==="prep"){
+container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button>`;
+}
+else if(state==="choice"){
+container.innerHTML=
+`<button class="primary" onclick="continueTask()">続行</button>
+<button class="secondary" onclick="endTask()">終了</button>`;
+}
+else if(state==="work"){
+container.innerHTML=
+`<button class="primary" onclick="completeTask()">完了</button>
+<button class="secondary" onclick="endTask()">終了</button>`;
+}
+}
+
+function continueTask(){
+state="work";
+runTimer();
+renderButtons();
+}
+
+function endTask(){
+clearInterval(interval);
+currentTask.status="incomplete";
+saveTask();
+reset();
+}
+
+function completeTask(){
+clearInterval(interval);
+currentTask.status="complete";
+saveTask();
+showConfetti();
+reset();
+}
+
+function showConfetti(){
+let div=document.createElement("div");
+div.className="confetti";
+div.innerText="🎉";
+document.body.appendChild(div);
+setTimeout(()=>div.remove(),700);
+}
+
+function reset(){
+showScreen("titleScreen");
+document.getElementById("titleInput").value="";
+renderRecords();
+}
+
+function saveTask(){
+let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+tasks.unshift(currentTask);
+localStorage.setItem("tasks",JSON.stringify(tasks));
+}
+
+function renderRecords(){
+let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+let list=document.getElementById("recordList");
+list.innerHTML="";
+tasks.sort((a,b)=>{
+if(a.status==="incomplete" && b.status==="complete")return -1;
+if(a.status==="complete" && b.status==="incomplete")return 1;
+return 0;
+});
+tasks.forEach((t,i)=>{
+let div=document.createElement("div");
+div.className="task "+(t.status==="complete"?"complete":"");
+div.innerHTML=
+`${t.title} - ${Math.floor(t.seconds/60)}分
+<button onclick="deleteTask(${i})">削除</button>`;
+list.appendChild(div);
+});
+}
+
+function deleteTask(i){
+let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+tasks.splice(i,1);
+localStorage.setItem("tasks",JSON.stringify(tasks));
+renderRecords();
+}
+
+function showScreen(id){
+document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+document.querySelectorAll(".tabbar div").forEach(t=>t.classList.remove("active-tab"));
+if(id==="timerScreen")document.querySelectorAll(".tabbar div")[0].classList.add("active-tab");
+if(id==="recordScreen")document.querySelectorAll(".tabbar div")[1].classList.add("active-tab");
+if(id==="calendarScreen")document.querySelectorAll(".tabbar div")[2].classList.add("active-tab");
+if(id==="recordScreen")renderRecords();
+}
+
+drawCircle(0);
+</script>
+
+</body>
+</html>
