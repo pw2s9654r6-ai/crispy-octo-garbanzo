@@ -155,7 +155,7 @@ animation:pop 0.7s ease-out forwards;
 <!-- タイトル画面 -->
 <div id="titleScreen" class="screen active center">
 <h2>作業タイトル</h2>
-<input id="titleInput" placeholder="例：レース分析">
+<input id="titleInput" placeholder="タイトル">
 <button class="primary" onclick="startPrep()">開始</button>
 <button class="link-btn" onclick="showResume()">作業を再開する</button>
 </div>
@@ -228,6 +228,10 @@ document.getElementById("timeDisplay").innerText=
 }
 
 function startPrep(titleOverride=null){
+if(animationId){
+cancelAnimationFrame(animationId);
+animationId=null;
+}
 const title=titleOverride || document.getElementById("titleInput").value.trim();
 if(!title)return;
 
@@ -267,6 +271,12 @@ animationId=requestAnimationFrame(animationLoop);
 }
 
 function continueTask(){
+if(animationId){
+cancelAnimationFrame(animationId);
+animationId=null;
+}
+
+state="work";
 state="work";
 startTimestamp=performance.now()-totalSeconds*1000;
 renderButtons();
