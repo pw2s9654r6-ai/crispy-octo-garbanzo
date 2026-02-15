@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Focus Timer">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;500;700&display=swap" rel="stylesheet">
 <title>Focus Timer</title>
 
 <style>
@@ -15,175 +15,78 @@
   --accent-light:#CFEFE2;
   --bg:#ECECEC;
   --text:#333;
-  --muted:#bbb;   /* 日付の色をより薄く */
-  --border:#eee;  /* 枠線の色をかなり薄く */
+  --muted:#bbb;   /* 日付の色：かなり薄く */
+  --border:#eee;  /* 枠線の色：かなり薄く */
+  --sun-color: #FFB7B2; /* パステル赤 */
+  --sat-color: #AEC6CF; /* パステル青 */
 }
 
-/* 下のバーの文字色を白に固定 */
-.tabbar div {
-  flex:1;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:600;
-  cursor:pointer;
-  color: #fff !important; 
+html,body{
+  margin:0; padding:0; height:100%; overflow:hidden;
+  font-family: 'Noto Sans JP', sans-serif;
+  background:var(--bg); color:var(--text);
 }
 
-/* カレンダーの縦幅を90%に */
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  background: var(--bg);
-  width: 100%;
-  height: 90%; 
-  margin-top: 5px;
+.screen{
+  position:absolute; top:0; left:0; width:100%; height:calc(100% - 60px);
+  background:var(--bg); display:none; padding:15px; box-sizing:border-box;
 }
 
-.calendar-day {
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  padding: 2px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  overflow: hidden;
+.active{display:block;}
+
+.center{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;
 }
 
-.day-num {
-  font-size: 10px;
-  font-weight: 300; /* フォントを細くしてマイルドに */
-  color: var(--muted);
-  width: 100%;
-  text-align: left;
-  padding-left: 2px;
+/* タイマーのデザイン */
+.circle-container{
+  position:relative; width:260px; height:260px; margin-bottom: 20px;
 }
-
-/* パステルカラーの土日 */
-.sun { color: #FFB7B2 !important; } /* パステル赤 */
-.sat { color: #AEC6CF !important; } /* パステル青 */
-
-/* 作業タイトルの角丸白抜き表示 */
-.has-record {
-  background-color: var(--accent);
-  color: #fff;
-  border-radius: 4px;
-  width: 92%;
-  font-size: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 3px 2px;
-  text-align: center;
-  box-sizing: border-box;
-  font-weight: 500;
-  margin-top: auto;
-  margin-bottom: 4px;
-}
-
 .time{
-position:absolute;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-font-size:52px;
-font-weight:700;
-font-variant-numeric: tabular-nums;
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-size:52px; font-weight:700; font-variant-numeric: tabular-nums;
 }
-
 button{
-border:none;
-border-radius:999px;
-padding:14px 28px;
-font-size:16px;
-margin:8px;
-cursor:pointer;
-font-family: inherit;
+  border:none; border-radius:999px; padding:14px 28px; font-size:16px; margin:8px;
+  cursor:pointer; font-family: inherit;
 }
-
 .primary{ background:var(--accent); color:#fff; font-weight: bold; }
 .secondary{ background:#ccc; color:#333; }
 
+/* 下部バー */
 .tabbar{
-position:absolute;
-bottom:0;
-width:100%;
-height:60px;
-display:flex;
-background:var(--accent-light);
+  position:absolute; bottom:0; width:100%; height:60px; display:flex; background:var(--accent-light);
 }
-
 .tabbar div{
-flex:1;
-display:flex;
-align-items:center;
-justify-content:center;
-font-weight:600;
-cursor:pointer;
-color: #fff; /* 下部バーの文字を白に固定 */
+  flex:1; display:flex; align-items:center; justify-content:center;
+  font-weight:600; cursor:pointer; color: #fff !important; /* 常に白文字 */
 }
-
 .active-tab{ background:var(--accent); }
 
-/* カレンダー専用スタイル */
-#calendarScreen {
-display: flex;
-flex-direction: column;
-padding-top: env(safe-area-inset-top);
-}
-
+/* カレンダーのデザイン */
+#calendarScreen { display: flex; flex-direction: column; }
 .calendar-grid {
-display: grid;
-grid-template-columns: repeat(7, 1fr);
-border-top: 1px solid var(--border);
-border-left: 1px solid var(--border);
-background: var(--bg);
-width: 100%;
-height: 85%; /* 縦幅を大きく確保 */
-margin-top: 10px;
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid var(--border); border-left: 1px solid var(--border);
+  background: var(--bg); width: 100%; height: 90%; margin-top: 5px;
 }
-
 .calendar-day {
-border-right: 1px solid var(--border);
-border-bottom: 1px solid var(--border);
-padding: 4px 2px;
-display: flex;
-flex-direction: column;
-align-items: center;
-overflow: hidden;
-position: relative;
+  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 2px; display: flex; flex-direction: column; align-items: center; overflow: hidden;
 }
-
 .day-num {
-font-size: 10px;
-font-weight: 400;
-color: var(--muted);
-width: 100%;
-text-align: left;
-padding-left: 2px;
-margin-bottom: 2px;
+  font-size: 10px; font-weight: 300; color: var(--muted);
+  width: 100%; text-align: left; padding-left: 2px;
 }
+.sun { color: var(--sun-color) !important; }
+.sat { color: var(--sat-color) !important; }
 
-/* 土日の背景色指定 */
-.sun { color: #d9534f; }
-.sat { color: #428bca; }
-
+/* 作業ラベル */
 .has-record {
-background-color: var(--accent);
-color: #fff;
-border-radius: 6px;
-width: 95%;
-font-size: 9px;
-white-space: nowrap;      /* 折り返しなし */
-overflow: hidden;         /* はみ出しを隠す */
-text-overflow: ellipsis;  /* …を表示 */
-padding: 4px 2px;
-text-align: center;
-box-sizing: border-box;
-font-weight: 500;
-margin-top: 2px;
+  background-color: var(--accent); color: #fff; border-radius: 4px;
+  width: 92%; font-size: 8px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; padding: 3px 2px; text-align: center;
+  box-sizing: border-box; font-weight: 500; margin-top: auto; margin-bottom: 4px;
 }
 
 .task{ padding:12px; border-bottom:1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
@@ -219,11 +122,11 @@ input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-
 
 <div id="recordScreen" class="screen">
 <h2>記録一覧</h2>
-<div id="recordList" style="overflow-y: auto; height: 100%;"></div>
+<div id="recordList" style="overflow-y: auto; height: 90%;"></div>
 </div>
 
 <div id="calendarScreen" class="screen">
-<h3 id="calendarMonth" style="margin: 0; font-weight: 500;">2026年 2月</h3>
+<h3 id="calendarMonth" style="margin: 0; font-weight: 500; font-size: 16px;">2026年 2月</h3>
 <div class="calendar-grid" id="calendarGrid"></div>
 </div>
 
@@ -247,7 +150,7 @@ const ctx=canvas.getContext("2d");
 function drawCircle(progress){
     ctx.clearRect(0,0,260,260);
     ctx.lineWidth=10;
-    ctx.strokeStyle="#e0e0e0";
+    ctx.strokeStyle="#f0f0f0";
     ctx.beginPath();
     ctx.arc(130,130,110,0,Math.PI*2);
     ctx.stroke();
@@ -267,10 +170,8 @@ function updateDisplay(seconds){
 function startPrep(titleOverride=null){
     const title=titleOverride || document.getElementById("titleInput").value.trim();
     if(!title) return;
-    
     const d = new Date();
     const dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-    
     currentTask={title, status:"active", seconds:0, date: dateStr};
     totalSeconds=0;
     state="prep";
@@ -283,7 +184,6 @@ function startPrep(titleOverride=null){
 function animationLoop(){
     const now=performance.now();
     const elapsed=(now-startTimestamp)/1000;
-    
     if(state==="prep"){
         let progress=Math.min(elapsed/prepDuration,1);
         drawCircle(progress);
@@ -354,40 +254,29 @@ function renderCalendar(){
     const grid = document.getElementById("calendarGrid");
     const monthLabel = document.getElementById("calendarMonth");
     grid.innerHTML = "";
-    
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
     monthLabel.innerText = `${year}年 ${month + 1}月`;
-
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
 
-    // 前の月部分を空ける
     for(let i=0; i<firstDay; i++){
         const div = document.createElement("div");
         div.className = "calendar-day";
         grid.appendChild(div);
     }
-
-    // 日付セル作成
     for(let d=1; d<=daysInMonth; d++){
         const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
         const dayTasks = tasks.filter(t => t.date === dateStr && t.status === "complete");
         const weekDay = (firstDay + d - 1) % 7;
-        
         const div = document.createElement("div");
         div.className = "calendar-day";
-        
-        // 土日のクラス付与
         let colorClass = "";
         if(weekDay === 0) colorClass = "sun";
         if(weekDay === 6) colorClass = "sat";
-        
         div.innerHTML = `<span class="day-num ${colorClass}">${d}</span>`;
-        
-        // 作業タイトルを１つ表示
         if(dayTasks.length > 0){
             const mark = document.createElement("div");
             mark.className = "has-record";
@@ -405,7 +294,7 @@ function renderRecords(){
     tasks.forEach((t,i)=>{
         let div=document.createElement("div");
         div.className="task";
-        div.innerHTML=`<div><div>${t.title}</div><small style="color:var(--muted);">${Math.floor(t.seconds/60)}分${t.seconds%60}秒 - ${t.status}</small></div>
+        div.innerHTML=`<div><div>${t.title}</div><small style="color:#999;">${Math.floor(t.seconds/60)}分${t.seconds%60}秒 - ${t.status}</small></div>
         <button class="secondary" style="padding:5px 10px; font-size:12px;" onclick="deleteTask(${i})">削除</button>`;
         list.appendChild(div);
     });
@@ -465,13 +354,13 @@ function renderButtons(){
 function beep(){
     try {
         let audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-        for(let i=0;i<4;i++){
+        for(let i=0;i<2;i++){
             let osc=audioCtx.createOscillator();
             osc.connect(audioCtx.destination);
             osc.start(audioCtx.currentTime+i*0.25);
-            osc.stop(audioCtx.currentTime+i*0.25+0.15);
+            osc.stop(audioCtx.currentTime+i*0.25+0.1);
         }
-    } catch(e) { console.log("Audio error"); }
+    } catch(e) {}
 }
 
 function showResume(){
