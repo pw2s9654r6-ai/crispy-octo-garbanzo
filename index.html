@@ -16,9 +16,10 @@
   --bg:#ECECEC;
   --text:#333;
   --muted:#bbb;
-  --border:#eee;
+  --border:#fff;  /* 枠線を完全な白に変更 */
   --sun-color: #FFB7B2;
   --sat-color: #AEC6CF;
+  --purple: #D1B3FF;
 }
 
 html,body{
@@ -36,6 +37,16 @@ html,body{
 #calendarScreen.active { display: flex; flex-direction: column; position: relative; }
 
 .center{ display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; }
+
+/* タイトルロゴのデザイン変更 */
+.title-logo {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 25px;
+  color: var(--text);
+  text-align: center;
+}
 
 /* 下部タブバー */
 .tabbar{
@@ -72,7 +83,7 @@ html,body{
   box-sizing: border-box; font-weight: 500; margin-top: auto; margin-bottom: 4px;
 }
 
-/* ポップアップ（フキダシ風） */
+/* ポップアップ詳細 */
 #dayPopup {
   position: absolute;
   top: 50%; left: 50%;
@@ -80,23 +91,31 @@ html,body{
   width: 85%;
   max-height: 60%;
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
   display: none;
   flex-direction: column;
-  padding: 20px;
+  padding: 24px 20px;
   z-index: 100;
   box-sizing: border-box;
 }
-#dayPopup h4 { margin: 0 0 15px 0; font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+#dayPopup h4 { margin: 0 0 15px 0; font-size: 16px; font-weight: 500; text-align: center; color: var(--text); }
 #dayPopupContent { overflow-y: auto; flex: 1; }
-.popup-item { margin-bottom: 10px; font-size: 14px; display: flex; justify-content: space-between; }
-.popup-item span { color: var(--muted); font-size: 12px; }
+
+.popup-task-item {
+  color: #fff; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; font-weight: 500;
+}
+.task-done { background-color: var(--accent); }
+.task-incomplete { background-color: var(--purple); }
+.task-time { font-size: 11px; opacity: 0.9; }
+
 #closePopup {
-  position: absolute; top: 12px; right: 15px; font-size: 20px; color: #ccc; cursor: pointer; font-weight: bold;
+  position: absolute; top: 10px; right: 15px; font-size: 24px; color: #ddd; cursor: pointer; line-height: 1;
 }
 
-/* タイマー等 */
+/* その他パーツ */
 .circle-container{ position:relative; width:260px; height:260px; margin-bottom: 20px; }
 .time{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:52px; font-weight:700; }
 button{ border:none; border-radius:999px; padding:14px 28px; font-size:16px; margin:8px; cursor:pointer; font-family: inherit; }
@@ -112,10 +131,10 @@ input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-
 
 <div id="titleScreen" class="screen active">
   <div class="center">
-    <h2 style="font-weight: 500;">集中をはじめる</h2>
-    <input id="titleInput" placeholder="何をしますか？">
+    <div class="title-logo">FOCUS TIMER</div>
+    <input id="titleInput" placeholder="タイトル">
     <button class="primary" onclick="startPrep()">開始</button>
-    <button class="link-btn" style="background:none; color:var(--accent); text-decoration:underline; border:none; cursor:pointer;" onclick="showResume()">未完タスクを再開</button>
+    <button class="link-btn" style="background:none; color:var(--accent); text-decoration:underline; border:none; cursor:pointer;" onclick="showResume()">作業を再開する</button>
   </div>
 </div>
 
@@ -300,7 +319,7 @@ function renderCalendar(){
     }
     for(let d=1; d<=daysInMonth; d++){
         const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-        const dayTasks = tasks.filter(t => t.date === dateStr && t.status === "complete");
+        const dayDoneTasks = tasks.filter(t => t.date === dateStr && t.status === "complete");
         const weekDay = (firstDay + d - 1) % 7;
         const div = document.createElement("div");
         div.className = "calendar-day";
@@ -311,10 +330,10 @@ function renderCalendar(){
         if(weekDay === 6) colorClass = "sat";
         div.innerHTML = `<span class="day-num ${colorClass}">${d}</span>`;
         
-        if(dayTasks.length > 0){
+        if(dayDoneTasks.length > 0){
             const mark = document.createElement("div");
             mark.className = "has-record";
-            mark.innerText = dayTasks[0].title; 
+            mark.innerText = dayDoneTasks[0].title; 
             div.appendChild(mark);
         }
         grid.appendChild(div);
@@ -323,20 +342,22 @@ function renderCalendar(){
 
 function showDayDetails(dateStr, dayNum){
     const tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
-    const dayTasks = tasks.filter(t => t.date === dateStr && t.status === "complete");
+    const dayTasks = tasks.filter(t => t.date === dateStr && (t.status === "complete" || t.status === "incomplete"));
     
-    document.getElementById("popupDateDisplay").innerText = `${dayNum}日の記録`;
+    document.getElementById("popupDateDisplay").innerText = `${dayNum}日の詳細`;
     const content = document.getElementById("dayPopupContent");
     content.innerHTML = "";
     
     if(dayTasks.length === 0){
-        content.innerHTML = "<p style='color:var(--muted); text-align:center;'>記録はありません</p>";
+        content.innerHTML = "<p style='color:var(--muted); text-align:center; margin-top:20px;'>この日の作業はありません</p>";
     } else {
         dayTasks.forEach(t => {
-            const item = document.createElement("div");
-            item.className = "popup-item";
-            item.innerHTML = `<div>${t.title}</div><span>${Math.floor(t.seconds/60)}分</span>`;
-            content.appendChild(item);
+            const div = document.createElement("div");
+            const isDone = t.status === "complete";
+            div.className = `popup-task-item ${isDone ? 'task-done' : 'task-incomplete'}`;
+            const timeStr = `${Math.floor(t.seconds/60)}分`;
+            div.innerHTML = `<div>${t.title}</div><span class="task-time">${isDone ? timeStr : '未完'}</span>`;
+            content.appendChild(div);
         });
     }
     document.getElementById("dayPopup").style.display = "flex";
