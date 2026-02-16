@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta name="robots" content="noindex, nofollow">
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,7 +22,7 @@
   --sat-color: #90caf9;
   --purple: #D1B3FF;
   --soft-orange: #FFB74D;
-  --keyboard-gray: #A0A0A0; /* 終了ボタン用（薄いグレー） */
+  --keyboard-gray: #A0A0A0;
   --light-gray: #dddddd;
   --completed-bg: #dfdfdf;
 }
@@ -97,13 +97,14 @@ button:active { opacity: 0.7; }
 /* --- カレンダー (下詰め・ラベル) --- */
 .calendar-grid { 
   display: grid; grid-template-columns: repeat(7, 1fr); 
+  grid-auto-rows: 1fr; /* 高さ均等 */
   background: #fff; width: 100%; height: 85%; 
   border-radius: 12px; border: 1px solid var(--border); 
 }
 .calendar-day { 
   border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); 
-  padding: 4px; min-height: 80px; display: flex; flex-direction: column; 
-  justify-content: flex-end; /* ★下詰め★ */
+  padding: 4px; display: flex; flex-direction: column; 
+  justify-content: flex-end; /* 下詰め */
   position: relative; overflow: hidden; cursor: pointer;
 }
 .day-num { 
@@ -243,7 +244,7 @@ function playAlarm() {
 const prepDuration=60, autoContinueTimeout=180;
 const canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
 
-// --- 新規開始（ポップアップなし） ---
+// --- 新規開始（ポップアップなし・新規ID） ---
 function startNewTask() {
     unlockAudio();
     const title = document.getElementById("titleInput").value.trim();
@@ -256,7 +257,7 @@ function startNewTask() {
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
-// --- 再開（ポップアップあり） ---
+// --- 再開（ポップアップあり・既存ID・時間引継ぎ） ---
 function startFromRecord(title, id) {
     unlockAudio();
     pendingData = { title: title, id: id };
@@ -270,43 +271,66 @@ function confirmResume(usePrep) {
     closeModals();
     const tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     const existing = tasks.find(t => t.id === pendingData.id);
+    
+    // ★ここが重要：既存の時間を取得する
     const initialSeconds = existing ? existing.seconds : 0;
+    
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
 
-    currentTask = { title: pendingData.title, status: "active", seconds: initialSeconds, date: dateStr, id: pendingData.id };
+    currentTask = { 
+        title: pendingData.title, 
+        status: "active", 
+        seconds: initialSeconds, 
+        date: dateStr, 
+        id: pendingData.id 
+    };
 
+    // ★重要：Prepありの場合でも、totalSecondsは既存時間(initialSeconds)で初期化する
+    // ただし、Prep中の表示は loop 内で別計算されるため問題ない
+    state = usePrep ? "prep" : "work";
+    totalSeconds = initialSeconds; 
+    
     if (usePrep) {
-        state = "prep"; totalSeconds = 0; startTimestamp = performance.now();
+        startTimestamp = performance.now();
     } else {
-        state = "work"; totalSeconds = initialSeconds; startTimestamp = performance.now() - (totalSeconds * 1000);
+        startTimestamp = performance.now() - (totalSeconds * 1000);
     }
+    
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
 // --- タイマーループ ---
 function animationLoop(){
     const now = performance.now();
+    
     if(state === "prep"){
         const elapsed = (now - startTimestamp) / 1000;
         let progress = Math.min(elapsed / prepDuration, 1);
         drawCircle(progress);
+        
+        // Prep中は「残り時間」を表示 (totalSecondsは裏で保持したまま)
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
         
         if(elapsed >= prepDuration){
             state = "choice";
-            totalSeconds = currentTask.seconds + 60; 
+            totalSeconds += 60; // 準備時間(60秒)を通算に加算
             choiceTimestamp = now;
             playAlarm(); renderButtons();
         }
     } else if(state === "choice"){
         const waitTime = Math.floor((now - choiceTimestamp) / 1000);
-        updateDisplay(totalSeconds + waitTime);
+        
+        // ★修正：選択待機中は表示を「0:00」にする
+        updateDisplay(0);
+        
         if(waitTime >= autoContinueTimeout) continueTask();
     } else if(state === "work"){
         totalSeconds = Math.floor((now - startTimestamp) / 1000);
-        drawCircle(1); updateDisplay(totalSeconds);
+        drawCircle(1); 
+        updateDisplay(totalSeconds);
     }
     
+    // 待機中以外はデータを更新
     if(currentTask && state !== "choice") currentTask.seconds = totalSeconds;
     animationId = requestAnimationFrame(animationLoop);
 }
@@ -314,8 +338,11 @@ function animationLoop(){
 function continueTask(){
     unlockAudio();
     const now = performance.now();
+    // 待機時間を加算してWorkへ移行
     const waitTime = Math.floor((now - choiceTimestamp) / 1000);
-    state = "work"; totalSeconds += waitTime; startTimestamp = now - (totalSeconds * 1000);
+    state = "work"; 
+    totalSeconds += waitTime; 
+    startTimestamp = now - (totalSeconds * 1000);
     renderButtons();
 }
 
@@ -332,7 +359,6 @@ function renderRecords(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     let list = document.getElementById("recordList"); list.innerHTML = "";
     
-    // 並び替え：未完 > 完了
     const incompleteTasks = tasks.filter(t => t.status !== 'complete');
     const completeTasks = tasks.filter(t => t.status === 'complete');
     const sortedTasks = [...incompleteTasks, ...completeTasks];
@@ -432,19 +458,39 @@ function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScree
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
 function showResume(){ showScreen("recordScreen"); openRecordTab(); }
 
-// --- オートセーブ ---
+// --- オートセーブ (リロード対策) ---
 window.addEventListener('load', () => {
     const session = localStorage.getItem("active_session");
     if(session) {
         const s = JSON.parse(session);
         state=s.state; currentTask=s.currentTask; startTimestamp=s.startTimestamp; totalSeconds=s.totalSeconds; choiceTimestamp=s.choiceTimestamp;
+        // ロード時は一時データを消す
         localStorage.removeItem("active_session");
+        
+        // ★修正：リロード時に現在の時刻とstartTimestampの差分をチェックして補正する必要があるが、
+        // ここでは「最後に保存された状態」から再開し、経過時間は加算されるよう startTimestamp を現在時刻基準で再計算する
+        // totalSecondsは保存された時点の通算時間なので、そこから再開する
+        if(state === 'work') {
+             startTimestamp = performance.now() - (totalSeconds * 1000);
+        } else if (state === 'prep') {
+             // prepの場合は残り時間を維持したいが、簡略化のためprepの最初から、あるいは経過時間を考慮
+             // 今回はprepの経過時間も保存されている想定で復元
+             const elapsed = (Date.now() - (s.saveTime || Date.now())) / 1000;
+             // 厳密な復元は複雑になるため、ここでは「中断時点の秒数」から再開とする
+             startTimestamp = performance.now() - ((s.elapsedPrep || 0) * 1000);
+        }
+        
         showScreen("timerScreen"); renderButtons(); animationLoop();
     }
 });
 window.addEventListener('beforeunload', () => {
     if(state && currentTask) {
-        localStorage.setItem("active_session", JSON.stringify({state, currentTask, startTimestamp, totalSeconds, choiceTimestamp}));
+        const data = {
+            state, currentTask, startTimestamp, totalSeconds, choiceTimestamp,
+            saveTime: Date.now(),
+            elapsedPrep: (performance.now() - startTimestamp) / 1000 // Prep経過時間保存用
+        };
+        localStorage.setItem("active_session", JSON.stringify(data));
     }
 });
 </script>
