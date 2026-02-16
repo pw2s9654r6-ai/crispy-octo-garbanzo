@@ -21,7 +21,7 @@
   --sat-color: #90caf9;
   --purple: #D1B3FF;
   --soft-orange: #FFB74D;
-  --keyboard-gray: #555555;
+  --keyboard-gray: #A0A0A0;
   --light-gray: #dddddd;
   --completed-bg: #dfdfdf;
 }
@@ -32,7 +32,6 @@ html,body{
   background:var(--bg); color:var(--text);
 }
 
-/* 画面構成 */
 .screen{
   position:absolute; top:0; left:0; width:100%; height:calc(100% - 60px);
   background:var(--bg); display:none; padding:15px; box-sizing:border-box;
@@ -41,12 +40,10 @@ html,body{
 .center{ display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; }
 .title-logo { font-size: 32px; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 25px; }
 
-/* タブバー */
 .tabbar{ position:absolute; bottom:0; width:100%; height:60px; display:flex; background:var(--accent-light); z-index: 10; }
 .tabbar div{ flex:1; display:flex; align-items:center; justify-content:center; font-weight:600; cursor:pointer; color: #fff !important; }
 .active-tab{ background:var(--accent); }
 
-/* ボタン */
 button{ border:none; border-radius:999px; padding:14px 28px; font-size:16px; margin:8px; cursor:pointer; font-family: inherit; transition: opacity 0.2s; }
 button:active { opacity: 0.7; }
 .primary{ background:var(--accent); color:#fff; font-weight: bold; min-width: 120px; }
@@ -58,24 +55,22 @@ button:active { opacity: 0.7; }
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
 
-/* 記録・カレンダー共通 */
 #recordList { overflow-y: auto; height: 85%; }
 .task { padding: 15px 12px; border-bottom: 1px solid #ddd; display: flex; align-items: center; background: #fff; }
 .task.completed-task { background: var(--completed-bg); color: #777; }
 .task-info { flex: 1; display: flex; justify-content: space-between; align-items: center; overflow: hidden; cursor: pointer; }
-.task-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; margin-right: 15px; }
+.task-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; margin-right: 15px; font-size: 16px; }
 .task-meta { font-size: 15px; color: #666; text-align: right; white-space: nowrap; font-weight: 700; }
+.status-tag { font-size: 10px; font-weight: 500; margin-left: 4px; padding: 2px 4px; border-radius: 4px; background: #eee; vertical-align: middle; }
 
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--bg); width: 100%; height: 85%; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
 .calendar-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 4px; display: flex; flex-direction: column; overflow: hidden; cursor: pointer; position: relative; min-height: 80px; }
 .day-num { font-size: 10px; font-weight: 500; color: var(--muted); margin-bottom: 2px; }
 .grid-task-label { color: #fff; border-radius: 2px; width: 100%; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1px 2px; margin-bottom: 1px; text-align: center; }
 
-/* モーダル */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; z-index: 90; }
 .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); display: none; flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box; text-align: center; }
 
-/* タイマー */
 .circle-container{ position:relative; width:260px; height:260px; margin-bottom: 20px; }
 .time{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:52px; font-weight:700; }
 input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-size:16px; margin-bottom:20px; font-family: inherit; }
@@ -92,7 +87,7 @@ input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-
     <div class="title-logo">FOCUS TIMER</div>
     <input id="titleInput" placeholder="タイトル">
     <button class="primary" onclick="startWithPrepCheck()">開始</button>
-    <button class="link-btn" style="background:none; color:var(--accent); text-decoration:underline; border:none;" onclick="showResume()">未完タスクから選ぶ</button>
+    <button class="link-btn" style="background:none; color:var(--accent); text-decoration:underline; border:none;" onclick="openRecordTab()">記録一覧から選ぶ</button>
   </div>
 </div>
 
@@ -144,7 +139,6 @@ let pendingTitle = "";
 const prepDuration=60, autoContinueTimeout=180;
 const canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
 
-// --- 起動・復帰ロジック ---
 function startWithPrepCheck(title = null) {
     pendingTitle = title || document.getElementById("titleInput").value.trim();
     if(!pendingTitle) return;
@@ -161,7 +155,14 @@ function confirmPrep(usePrep) {
     const initialSeconds = existing ? existing.seconds : 0;
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
 
-    currentTask = { title: pendingTitle, status: "active", seconds: initialSeconds, date: dateStr, id: existing ? existing.id : Date.now() };
+    // IDを維持することで個別削除可能に
+    currentTask = { 
+        title: pendingTitle, 
+        status: "active", 
+        seconds: initialSeconds, 
+        date: dateStr, 
+        id: existing ? existing.id : Date.now() 
+    };
 
     if (usePrep) {
         state = "prep";
@@ -178,7 +179,6 @@ function confirmPrep(usePrep) {
     animationLoop();
 }
 
-// --- メインループ ---
 function animationLoop(){
     const now = performance.now();
     if(state === "prep"){
@@ -188,7 +188,7 @@ function animationLoop(){
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
         if(elapsed >= prepDuration){
             state = "choice";
-            totalSeconds = currentTask.seconds + 60; // 1分加算して待機開始
+            totalSeconds = currentTask.seconds + 60;
             choiceTimestamp = now;
             beep(); renderButtons();
         }
@@ -214,10 +214,9 @@ function continueTask(){
     renderButtons();
 }
 
-// --- データの保存 ---
 function saveTask(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
-    const idx = tasks.findIndex(t => t.title === currentTask.title);
+    const idx = tasks.findIndex(t => t.id === currentTask.id); // IDで検索
     if(idx !== -1) {
         tasks[idx].seconds = currentTask.seconds;
         tasks[idx].status = currentTask.status;
@@ -228,29 +227,32 @@ function saveTask(){
     localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
-// --- UI描画 ---
-function renderButtons(){
-    const container=document.getElementById("buttons"); container.innerHTML="";
-    if(state==="prep") container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button>`;
-    else if(state==="choice") container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button><button class="primary" onclick="continueTask()">続ける</button>`;
-    else if(state==="work") container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button><button class="complete-btn" onclick="completeTask()">完了</button>`;
-}
-
 function renderRecords(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     let list = document.getElementById("recordList"); list.innerHTML = "";
-    tasks.forEach((t, i) => {
+    tasks.forEach((t) => {
         let div = document.createElement("div");
         div.className = `task ${t.status === 'complete' ? 'completed-task' : ''}`;
         div.innerHTML = `
             <div class="task-info" onclick="startWithPrepCheck('${t.title}')">
                 <div class="task-title">${t.title}</div>
-                <div class="task-meta">${formatTimeHHMM(t.seconds)} - ${t.status === 'complete' ? '完了' : '未完'}</div>
+                <div class="task-meta">
+                    ${formatTimeHHMM(t.seconds)}
+                    <span class="status-tag">${t.status === 'complete' ? '完了' : '未完'}</span>
+                </div>
             </div>
-            <button class="delete-btn" onclick="deleteTask(event, '${t.title}')">削除</button>
+            <button class="delete-btn" onclick="deleteTask(event, ${t.id})">削除</button>
         `;
         list.appendChild(div);
     });
+}
+
+function deleteTask(e, id) {
+    e.stopPropagation();
+    let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+    // IDが一致するものだけを削除
+    localStorage.setItem("tasks", JSON.stringify(tasks.filter(t => t.id !== id)));
+    renderRecords();
 }
 
 function renderCalendar(){
@@ -280,7 +282,6 @@ function renderCalendar(){
     }
 }
 
-// --- ユーティリティ ---
 function formatTimeHHMM(s) {
     const m = Math.floor(s/60), mm = m % 60, hh = Math.floor(m/60);
     return `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`;
@@ -294,11 +295,11 @@ function drawCircle(p){
     ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent');
     ctx.lineCap='round'; ctx.beginPath(); ctx.arc(130,130,110,-Math.PI/2,(Math.PI*2*p)-Math.PI/2); ctx.stroke();
 }
-function deleteTask(e, title) {
-    e.stopPropagation();
-    let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
-    localStorage.setItem("tasks", JSON.stringify(tasks.filter(t => t.title !== title)));
-    renderRecords();
+function renderButtons(){
+    const container=document.getElementById("buttons"); container.innerHTML="";
+    if(state==="prep") container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button>`;
+    else if(state==="choice") container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button><button class="primary" onclick="continueTask()">続ける</button>`;
+    else if(state==="work") container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button><button class="complete-btn" onclick="completeTask()">完了</button>`;
 }
 function endTask(){ cancelAnimationFrame(animationId); currentTask.status="incomplete"; saveTask(); reset(); }
 function completeTask(){ cancelAnimationFrame(animationId); currentTask.status="complete"; saveTask(); document.getElementById("congratsTaskTitle").innerText=currentTask.title; document.getElementById("congratsTime").innerText=formatTimeHHMM(currentTask.seconds); document.getElementById("congratsPopup").style.display="flex"; fireConfetti(); }
@@ -311,11 +312,21 @@ function openRecordTab(){ updateTabs('tabRecord'); showScreen("recordScreen"); r
 function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScreen"); renderCalendar(); }
 function beep(){ try{ const AC=window.AudioContext||window.webkitAudioContext; const c=new AC(); for(let i=0;i<2;i++){ let o=c.createOscillator(), g=c.createGain(); o.connect(g); g.connect(c.destination); o.type='sine'; o.frequency.setValueAtTime(880,c.currentTime+i*0.25); g.gain.setValueAtTime(0,c.currentTime+i*0.25); g.gain.linearRampToValueAtTime(0.2,c.currentTime+i*0.25+0.01); g.gain.exponentialRampToValueAtTime(0.01,c.currentTime+i*0.25+0.1); o.start(c.currentTime+i*0.25); o.stop(c.currentTime+i*0.25+0.12); } setTimeout(()=>c.close(),600); }catch(e){} }
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
-function showResume(){ showScreen("recordScreen"); openRecordTab(); }
 
-// オートセーブ（長時間負荷対策：閉じるときだけ保存）
-window.addEventListener('beforeunload', () => { if(state && currentTask) { currentTask.lastSaved = Date.now(); localStorage.setItem("active_session", JSON.stringify({state, currentTask, startTimestamp, totalSeconds, choiceTimestamp})); } });
-window.addEventListener('load', () => { const session = localStorage.getItem("active_session"); if(session) { const s = JSON.parse(session); state=s.state; currentTask=s.currentTask; startTimestamp=s.startTimestamp; totalSeconds=s.totalSeconds; choiceTimestamp=s.choiceTimestamp; localStorage.removeItem("active_session"); showScreen("timerScreen"); renderButtons(); animationLoop(); } });
+window.addEventListener('load', () => {
+    const session = localStorage.getItem("active_session");
+    if(session) {
+        const s = JSON.parse(session);
+        state=s.state; currentTask=s.currentTask; startTimestamp=s.startTimestamp; totalSeconds=s.totalSeconds; choiceTimestamp=s.choiceTimestamp;
+        localStorage.removeItem("active_session");
+        showScreen("timerScreen"); renderButtons(); animationLoop();
+    }
+});
+window.addEventListener('beforeunload', () => {
+    if(state && currentTask) {
+        localStorage.setItem("active_session", JSON.stringify({state, currentTask, startTimestamp, totalSeconds, choiceTimestamp}));
+    }
+});
 </script>
 </body>
 </html>
