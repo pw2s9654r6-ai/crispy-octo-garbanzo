@@ -15,10 +15,10 @@
   --accent-light:#CFEFE2;
   --bg:#ECECEC;
   --text:#333;
-  --muted:#777;   /* 日付：少し濃く */
-  --border:#f2f2f2; /* 枠線：白とグレーの中間 */
-  --sun-color: #ef9a9a; /* 日曜：少し濃いパステル赤 */
-  --sat-color: #90caf9; /* 土曜：少し濃いパステル青 */
+  --muted:#777;
+  --border:#f2f2f2;
+  --sun-color: #ef9a9a;
+  --sat-color: #90caf9;
   --purple: #D1B3FF;
 }
 
@@ -68,17 +68,14 @@ html,body{
 .sun { color: var(--sun-color) !important; }
 .sat { color: var(--sat-color) !important; }
 
-/* カレンダー枠内の作業ラベル群コンテナ */
 .day-tasks-container {
   width: 100%; display: flex; flex-direction: column;
-  margin-top: auto; /* 下詰めにする */
-  gap: 1px;
+  margin-top: auto; gap: 1px;
 }
 
-/* 枠内の個別のラベル */
 .grid-task-label {
   color: #fff; border-radius: 3px;
-  width: 96%; font-size: 11px; /* 日付より少し大きい */
+  width: 96%; font-size: 11px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 2px 1px; text-align: center;
   box-sizing: border-box; font-weight: 500;
@@ -90,17 +87,22 @@ html,body{
 /* ポップアップ */
 #dayPopup {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 85%; max-height: 60%; background: #fff; border-radius: 20px;
+  width: 90%; max-height: 70%; background: #fff; border-radius: 20px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none;
   flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box;
 }
 #dayPopup h4 { margin: 0 0 15px 0; font-size: 16px; font-weight: 500; text-align: center; }
 #dayPopupContent { overflow-y: auto; flex: 1; }
-.popup-task-item {
-  color: #fff; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+
+.popup-task-label {
+  color: #fff; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 13px; font-weight: 500;
+  font-size: 14px; font-weight: 500;
 }
+.popup-done { background-color: var(--accent); }
+.popup-incomplete { background-color: var(--purple); }
+.popup-info-area { display: flex; gap: 8px; font-size: 12px; font-weight: 400; opacity: 0.9; flex-shrink: 0; }
+
 #closePopup { position: absolute; top: 10px; right: 15px; font-size: 24px; color: #ddd; cursor: pointer; }
 
 /* その他パーツ */
@@ -148,7 +150,7 @@ input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-
 </div>
 
 <div id="calendarScreen" class="screen">
-  <h3 id="calendarMonth" style="margin: 0; font-weight: 500; font-size: 16px;">2026年 2月</h3>
+  <h3 id="calendarMonth" style="margin: 10px 0; font-weight: 500; font-size: 16px; text-align: center;">2026年 2月</h3>
   <div class="calendar-grid" id="calendarGrid"></div>
   
   <div id="dayPopup">
@@ -174,6 +176,14 @@ const prepDuration=60;
 
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
+
+// 共通の時間フォーマット関数 (hh:mm)
+function formatTimeHHMM(seconds) {
+    const m = Math.floor(seconds / 60);
+    const mm = m % 60;
+    const hh = Math.floor(m / 60);
+    return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+}
 
 function drawCircle(progress){
     ctx.clearRect(0,0,260,260);
@@ -307,10 +317,7 @@ function renderCalendar(){
     }
     for(let d=1; d<=daysInMonth; d++){
         const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-        // 完了・未完の全タスクを取得
         const dayTasks = tasks.filter(t => t.date === dateStr && (t.status === "complete" || t.status === "incomplete"));
-        
-        // 未完が上(incomplete)、完了が下(complete)になるようにソート
         dayTasks.sort((a,b) => (a.status === "incomplete" ? -1 : 1));
 
         const weekDay = (firstDay + d - 1) % 7;
@@ -323,16 +330,13 @@ function renderCalendar(){
         if(weekDay === 6) colorClass = "sat";
         div.innerHTML = `<span class="day-num ${colorClass}">${d}</span>`;
         
-        // 作業タイトルをグリッド内に直接表示するコンテナ
         if(dayTasks.length > 0){
             const container = document.createElement("div");
             container.className = "day-tasks-container";
-            
-            // 最大2つまで表示（セルが溢れないよう調整、それ以上はタップで詳細確認）
             dayTasks.slice(0, 2).forEach(t => {
                 const label = document.createElement("div");
                 label.className = `grid-task-label ${t.status === 'complete' ? 'grid-done' : 'grid-incomplete'}`;
-                label.innerText = t.title;
+                label.innerText = t.title; // カレンダー内はタイトルのみ表示
                 container.appendChild(label);
             });
             div.appendChild(container);
@@ -356,9 +360,18 @@ function showDayDetails(dateStr, dayNum){
         dayTasks.forEach(t => {
             const div = document.createElement("div");
             const isDone = t.status === "complete";
-            div.className = `popup-task-item ${isDone ? 'task-done' : 'task-incomplete'}`;
-            const timeStr = `${Math.floor(t.seconds/60)}分`;
-            div.innerHTML = `<div>${t.title}</div><span style="font-size:11px; opacity:0.9;">${isDone ? timeStr : '未完'}</span>`;
+            div.className = `popup-task-label ${isDone ? 'popup-done' : 'popup-incomplete'}`;
+            
+            const timeStr = formatTimeHHMM(t.seconds);
+            const statusStr = isDone ? "完了" : "未完";
+
+            div.innerHTML = `
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.title}</div>
+                <div class="popup-info-area">
+                    <span>${timeStr}</span>
+                    <span style="font-weight:700;">${statusStr}</span>
+                </div>
+            `;
             content.appendChild(div);
         });
     }
@@ -376,7 +389,9 @@ function renderRecords(){
     tasks.forEach((t,i)=>{
         let div=document.createElement("div");
         div.className="task";
-        div.innerHTML=`<div><div>${t.title}</div><small style="color:#999;">${Math.floor(t.seconds/60)}分 - ${t.status}</small></div>
+        const timeStr = formatTimeHHMM(t.seconds);
+        const statusStr = (t.status === "complete") ? "完了" : "未完";
+        div.innerHTML=`<div><div>${t.title}</div><small style="color:#999;">${timeStr} - ${statusStr}</small></div>
         <button class="secondary" style="padding:5px 10px; font-size:12px;" onclick="deleteTask(${i})">削除</button>`;
         list.appendChild(div);
     });
