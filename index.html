@@ -1,3 +1,8 @@
+「選択した時の色が一番下（ホームバーの裏）まで伸びていない」という現象ですね。原因が分かりました！
+以前のコードでは、**「枠（タブバー全体）」に対して下の余白を作っていたため、「中身（選択ボタン）」**の色を変えても、余白部分には「枠の色（薄い緑）」が残ってしまっていました。
+これを解決するには、「ボタン一つひとつ」を画面の一番下まで伸ばし、文字だけを上に押し上げる必要があります。
+これで選択したボタンの色が、画面の物理的な一番下まで完全に塗りつぶされます。
+🛠️ 修正・完全版コード
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -28,16 +33,16 @@
   --light-gray: #dddddd;
   --completed-bg: #dfdfdf;
   
-  /* セーフエリア変数（万が一取得できない場合は0px） */
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 20px); /* デフォルト値を少し持たせて保険をかける */
+  /* セーフエリア変数（デフォルト値を設定して保険をかける） */
+  --safe-top: env(safe-area-inset-top, 20px);
+  --safe-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 html, body {
   margin: 0; padding: 0; width: 100%; height: 100%; 
   font-family: 'Noto Sans JP', sans-serif;
   background: var(--bg); color: var(--text);
-  overscroll-behavior: none; /* バウンス防止 */
+  overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -49,16 +54,13 @@ html, body {
   display: none; 
   box-sizing: border-box;
   
-  /* 上の余白 */
+  /* コンテンツがバーに隠れないよう余白調整 */
   padding-top: calc(15px + var(--safe-top)); 
   padding-left: 15px;
   padding-right: 15px;
-  
-  /* 下の余白：タブバーの高さ(60px) + セーフエリア + 余裕(15px) */
-  /* fixedにしたので、コンテンツが隠れないように多めに余白を取る */
   padding-bottom: calc(60px + var(--safe-bottom) + 20px);
   
-  overflow: hidden; /* スクロールは内部要素に任せる */
+  overflow: hidden; 
 }
 .screen.active { display: block; }
 
@@ -134,19 +136,16 @@ button:active { opacity: 0.7; }
 .time { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 52px; font-weight: 700; }
 input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; font-size: 16px; margin-bottom: 20px; font-family: inherit; }
 
-/* --- タブバー (完全固定版) --- */
+/* --- タブバー (完全解決版) --- */
 .tabbar { 
-  /* absoluteではなくfixedにして画面最下部に強制固定 */
   position: fixed; 
   bottom: 0; 
   left: 0;
   width: 100%; 
-  /* 高さ = ボタン部分60px + セーフエリア */
-  height: calc(60px + var(--safe-bottom)); 
   display: flex; 
   background: var(--accent-light); 
   z-index: 999; 
-  box-shadow: 0 -1px 5px rgba(0,0,0,0.05); /* 境界がわかるよう薄い影 */
+  box-shadow: 0 -1px 5px rgba(0,0,0,0.05);
 }
 
 .tabbar div { 
@@ -158,9 +157,14 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
   cursor: pointer; 
   color: #fff; 
   
-  /* セーフエリア分だけ下のパディングを増やすことで、
-     背景色は下まで伸び、文字は上に押し上げられる */
+  /* ★ここがポイント！ */
+  /* ボタン自体の高さを「60px + ホームバーの高さ」にする */
+  height: calc(60px + var(--safe-bottom));
+  
+  /* 下にパディングを入れて、文字を上に押し上げる */
   padding-bottom: var(--safe-bottom);
+  
+  /* これにより、背景色(active-tabの色)が一番下まで伸びる */
   box-sizing: border-box;
 }
 .active-tab { background: var(--accent); }
