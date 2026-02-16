@@ -66,10 +66,13 @@ button:active { opacity: 0.7; }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--bg); width: 100%; height: 85%; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
 .calendar-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 4px; display: flex; flex-direction: column; overflow: hidden; cursor: pointer; position: relative; min-height: 80px; }
 .day-num { font-size: 10px; font-weight: 500; color: var(--muted); margin-bottom: 2px; }
+.day-num.sun { color: var(--sun-color); }
+.day-num.sat { color: var(--sat-color); }
 .grid-task-label { color: #fff; border-radius: 2px; width: 100%; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1px 2px; margin-bottom: 1px; text-align: center; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; z-index: 90; }
 .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); display: none; flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box; text-align: center; }
+#dayPopupContent { max-height: 250px; overflow-y: auto; margin-top: 15px; text-align: left; }
 
 .circle-container{ position:relative; width:260px; height:260px; margin-bottom: 20px; }
 .time{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:52px; font-weight:700; }
@@ -117,6 +120,12 @@ input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-
   <button class="primary" onclick="reset()">閉じる</button>
 </div>
 
+<div id="dayPopup" class="modal">
+    <h4 id="popupDateDisplay" style="margin: 0;">日付の詳細</h4>
+    <div id="dayPopupContent"></div>
+    <button class="secondary" onclick="closeModals()" style="margin-top:15px;">閉じる</button>
+</div>
+
 <div id="recordScreen" class="screen">
   <h2>記録一覧</h2>
   <div id="recordList"></div>
@@ -135,33 +144,58 @@ input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-
 
 <script>
 let state=null, totalSeconds=0, currentTask=null, animationId=null, startTimestamp=null, choiceTimestamp=null;
-let pendingTitle = "";
+// 選択されたタスク情報を一時保持（タイトルと、既存の場合はID）
+let pendingData = null; 
+
 const prepDuration=60, autoContinueTimeout=180;
 const canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
 
-function startWithPrepCheck(title = null) {
-    pendingTitle = title || document.getElementById("titleInput").value.trim();
-    if(!pendingTitle) return;
-    document.getElementById("modalTaskTitle").innerText = pendingTitle;
+// --- 起動・復帰ロジック ---
+// 引数 id がある場合＝既存タスクの再開。ない場合＝新規作成。
+function startWithPrepCheck(title = null, id = null) {
+    const inputTitle = document.getElementById("titleInput").value.trim();
+    const targetTitle = title || inputTitle;
+    
+    if(!targetTitle) return;
+    
+    // 情報を保存してモーダルを表示
+    pendingData = { title: targetTitle, id: id };
+    
+    document.getElementById("modalTaskTitle").innerText = targetTitle;
     document.getElementById("prepSelectModal").style.display = "flex";
     document.getElementById("modalOverlay").style.display = "block";
 }
 
 function confirmPrep(usePrep) {
     closeModals();
-    const tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
-    const existing = tasks.find(t => t.title === pendingTitle);
     
-    const initialSeconds = existing ? existing.seconds : 0;
+    const tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+    let initialSeconds = 0;
+    let targetId = pendingData.id;
+    
+    // ID指定がある場合（再開）は既存データを検索
+    if (targetId) {
+        const existing = tasks.find(t => t.id === targetId);
+        if (existing) {
+            initialSeconds = existing.seconds;
+        } else {
+            // 万が一IDが見つからない場合は新規として扱う
+            targetId = Date.now();
+        }
+    } else {
+        // ID指定がない場合（新規入力）は、同名タスクがあっても別IDを発行して新規作成
+        targetId = Date.now();
+        initialSeconds = 0;
+    }
+
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
 
-    // IDを維持することで個別削除可能に
     currentTask = { 
-        title: pendingTitle, 
+        title: pendingData.title, 
         status: "active", 
         seconds: initialSeconds, 
         date: dateStr, 
-        id: existing ? existing.id : Date.now() 
+        id: targetId
     };
 
     if (usePrep) {
@@ -179,6 +213,7 @@ function confirmPrep(usePrep) {
     animationLoop();
 }
 
+// --- メインループ ---
 function animationLoop(){
     const now = performance.now();
     if(state === "prep"){
@@ -186,9 +221,10 @@ function animationLoop(){
         let progress = Math.min(elapsed / prepDuration, 1);
         drawCircle(progress);
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
+        
         if(elapsed >= prepDuration){
             state = "choice";
-            totalSeconds = currentTask.seconds + 60;
+            totalSeconds = currentTask.seconds + 60; 
             choiceTimestamp = now;
             beep(); renderButtons();
         }
@@ -201,6 +237,7 @@ function animationLoop(){
         drawCircle(1);
         updateDisplay(totalSeconds);
     }
+    
     if(currentTask && state !== "choice") currentTask.seconds = totalSeconds;
     animationId = requestAnimationFrame(animationLoop);
 }
@@ -214,9 +251,10 @@ function continueTask(){
     renderButtons();
 }
 
+// --- データ保存 ---
 function saveTask(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
-    const idx = tasks.findIndex(t => t.id === currentTask.id); // IDで検索
+    const idx = tasks.findIndex(t => t.id === currentTask.id); // IDで厳密に特定
     if(idx !== -1) {
         tasks[idx].seconds = currentTask.seconds;
         tasks[idx].status = currentTask.status;
@@ -227,14 +265,16 @@ function saveTask(){
     localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
+// --- UI描画 ---
 function renderRecords(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     let list = document.getElementById("recordList"); list.innerHTML = "";
     tasks.forEach((t) => {
         let div = document.createElement("div");
         div.className = `task ${t.status === 'complete' ? 'completed-task' : ''}`;
+        // リストクリック時はIDも渡して「再開」扱いにする
         div.innerHTML = `
-            <div class="task-info" onclick="startWithPrepCheck('${t.title}')">
+            <div class="task-info" onclick="startWithPrepCheck('${t.title}', ${t.id})">
                 <div class="task-title">${t.title}</div>
                 <div class="task-meta">
                     ${formatTimeHHMM(t.seconds)}
@@ -255,6 +295,7 @@ function deleteTask(e, id) {
     renderRecords();
 }
 
+// カレンダー描画
 function renderCalendar(){
     const grid=document.getElementById("calendarGrid");
     const monthLabel=document.getElementById("calendarMonth");
@@ -269,8 +310,14 @@ function renderCalendar(){
     for(let d=1;d<=daysInMonth;d++){
         const dateStr=`${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
         const dayTasks=tasks.filter(t=>t.date===dateStr);
-        const div=document.createElement("div"); div.className="calendar-day";
-        div.innerHTML=`<span class="day-num">${d}</span>`;
+        const div=document.createElement("div"); 
+        div.className="calendar-day";
+        div.onclick = () => showDayDetails(dateStr, d);
+        
+        const weekDay=(firstDay+d-1)%7;
+        let dayClass=""; if(weekDay===0) dayClass="sun"; if(weekDay===6) dayClass="sat";
+        div.innerHTML=`<span class="day-num ${dayClass}">${d}</span>`;
+        
         dayTasks.slice(0,3).forEach(t=>{
             const label=document.createElement("div"); 
             label.className="grid-task-label";
@@ -282,6 +329,31 @@ function renderCalendar(){
     }
 }
 
+function showDayDetails(dateStr, dayNum){
+    const tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+    const dayTasks=tasks.filter(t=>t.date===dateStr);
+    const content=document.getElementById("dayPopupContent");
+    document.getElementById("popupDateDisplay").innerText=`${dayNum}日の記録`;
+    content.innerHTML="";
+    
+    if(dayTasks.length === 0){
+        content.innerHTML = "<p style='text-align:center; color:#999;'>記録がありません</p>";
+    } else {
+        dayTasks.forEach(t => {
+            const item = document.createElement("div");
+            item.style.cssText = "padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;";
+            item.innerHTML = `
+                <span style="font-weight:500;">${t.title}</span>
+                <span style="font-size:14px; color:#666;">${formatTimeHHMM(t.seconds)}</span>
+            `;
+            content.appendChild(item);
+        });
+    }
+    document.getElementById("dayPopup").style.display = "flex";
+    document.getElementById("modalOverlay").style.display = "block";
+}
+
+// --- ユーティリティ ---
 function formatTimeHHMM(s) {
     const m = Math.floor(s/60), mm = m % 60, hh = Math.floor(m/60);
     return `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`;
@@ -302,7 +374,7 @@ function renderButtons(){
     else if(state==="work") container.innerHTML=`<button class="secondary" onclick="endTask()">終了</button><button class="complete-btn" onclick="completeTask()">完了</button>`;
 }
 function endTask(){ cancelAnimationFrame(animationId); currentTask.status="incomplete"; saveTask(); reset(); }
-function completeTask(){ cancelAnimationFrame(animationId); currentTask.status="complete"; saveTask(); document.getElementById("congratsTaskTitle").innerText=currentTask.title; document.getElementById("congratsTime").innerText=formatTimeHHMM(currentTask.seconds); document.getElementById("congratsPopup").style.display="flex"; fireConfetti(); }
+function completeTask(){ cancelAnimationFrame(animationId); currentTask.status="complete"; saveTask(); document.getElementById("congratsTaskTitle").innerText=currentTask.title; document.getElementById("congratsTime").innerText=formatTimeHHMM(currentTask.seconds); document.getElementById("congratsPopup").style.display="flex"; document.getElementById("modalOverlay").style.display="block"; fireConfetti(); }
 function reset(){ state=null; currentTask=null; closeModals(); document.getElementById("congratsPopup").style.display="none"; showScreen("titleScreen"); document.getElementById("titleInput").value=""; updateTabs('tabTimer'); }
 function closeModals(){ document.querySelectorAll(".modal").forEach(m=>m.style.display="none"); document.getElementById("modalOverlay").style.display="none"; }
 function showScreen(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active")); document.getElementById(id).classList.add("active"); }
@@ -313,6 +385,7 @@ function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScree
 function beep(){ try{ const AC=window.AudioContext||window.webkitAudioContext; const c=new AC(); for(let i=0;i<2;i++){ let o=c.createOscillator(), g=c.createGain(); o.connect(g); g.connect(c.destination); o.type='sine'; o.frequency.setValueAtTime(880,c.currentTime+i*0.25); g.gain.setValueAtTime(0,c.currentTime+i*0.25); g.gain.linearRampToValueAtTime(0.2,c.currentTime+i*0.25+0.01); g.gain.exponentialRampToValueAtTime(0.01,c.currentTime+i*0.25+0.1); o.start(c.currentTime+i*0.25); o.stop(c.currentTime+i*0.25+0.12); } setTimeout(()=>c.close(),600); }catch(e){} }
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
 
+// --- オートセーブ (リロード対策) ---
 window.addEventListener('load', () => {
     const session = localStorage.getItem("active_session");
     if(session) {
