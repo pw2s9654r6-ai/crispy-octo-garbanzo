@@ -15,10 +15,10 @@
   --accent-light:#CFEFE2;
   --bg:#ECECEC;
   --text:#333;
-  --muted:#bbb;
-  --border:#fff;  /* 枠線を完全な白に変更 */
-  --sun-color: #FFB7B2;
-  --sat-color: #AEC6CF;
+  --muted:#777;   /* 日付：少し濃く */
+  --border:#f2f2f2; /* 枠線：白とグレーの中間 */
+  --sun-color: #ef9a9a; /* 日曜：少し濃いパステル赤 */
+  --sat-color: #90caf9; /* 土曜：少し濃いパステル青 */
   --purple: #D1B3FF;
 }
 
@@ -32,23 +32,15 @@ html,body{
   position:absolute; top:0; left:0; width:100%; height:calc(100% - 60px);
   background:var(--bg); display:none; padding:15px; box-sizing:border-box;
 }
-
 .screen.active{ display:block; }
 #calendarScreen.active { display: flex; flex-direction: column; position: relative; }
 
 .center{ display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; }
 
-/* タイトルロゴのデザイン変更 */
 .title-logo {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  margin-bottom: 25px;
-  color: var(--text);
-  text-align: center;
+  font-size: 32px; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 25px;
 }
 
-/* 下部タブバー */
 .tabbar{
   position:absolute; bottom:0; width:100%; height:60px; display:flex; background:var(--accent-light); z-index: 10;
 }
@@ -66,54 +58,50 @@ html,body{
 }
 .calendar-day {
   border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  padding: 2px; display: flex; flex-direction: column; align-items: center; overflow: hidden;
-  cursor: pointer;
+  padding: 2px; display: flex; flex-direction: column; align-items: center; 
+  overflow: hidden; cursor: pointer; position: relative;
 }
 .day-num {
-  font-size: 10px; font-weight: 300; color: var(--muted);
+  font-size: 10px; font-weight: 500; color: var(--muted);
   width: 100%; text-align: left; padding-left: 2px;
 }
 .sun { color: var(--sun-color) !important; }
 .sat { color: var(--sat-color) !important; }
 
-.has-record {
-  background-color: var(--accent); color: #fff; border-radius: 4px;
-  width: 94%; font-size: 8px; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; padding: 3px 2px; text-align: center;
-  box-sizing: border-box; font-weight: 500; margin-top: auto; margin-bottom: 4px;
+/* カレンダー枠内の作業ラベル群コンテナ */
+.day-tasks-container {
+  width: 100%; display: flex; flex-direction: column;
+  margin-top: auto; /* 下詰めにする */
+  gap: 1px;
 }
 
-/* ポップアップ詳細 */
+/* 枠内の個別のラベル */
+.grid-task-label {
+  color: #fff; border-radius: 3px;
+  width: 96%; font-size: 11px; /* 日付より少し大きい */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 2px 1px; text-align: center;
+  box-sizing: border-box; font-weight: 500;
+  margin: 0 auto;
+}
+.grid-done { background-color: var(--accent); }
+.grid-incomplete { background-color: var(--purple); }
+
+/* ポップアップ */
 #dayPopup {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 85%;
-  max-height: 60%;
-  background: #fff;
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-  display: none;
-  flex-direction: column;
-  padding: 24px 20px;
-  z-index: 100;
-  box-sizing: border-box;
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 85%; max-height: 60%; background: #fff; border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none;
+  flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box;
 }
-#dayPopup h4 { margin: 0 0 15px 0; font-size: 16px; font-weight: 500; text-align: center; color: var(--text); }
+#dayPopup h4 { margin: 0 0 15px 0; font-size: 16px; font-weight: 500; text-align: center; }
 #dayPopupContent { overflow-y: auto; flex: 1; }
-
 .popup-task-item {
   color: #fff; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
   display: flex; justify-content: space-between; align-items: center;
   font-size: 13px; font-weight: 500;
 }
-.task-done { background-color: var(--accent); }
-.task-incomplete { background-color: var(--purple); }
-.task-time { font-size: 11px; opacity: 0.9; }
-
-#closePopup {
-  position: absolute; top: 10px; right: 15px; font-size: 24px; color: #ddd; cursor: pointer; line-height: 1;
-}
+#closePopup { position: absolute; top: 10px; right: 15px; font-size: 24px; color: #ddd; cursor: pointer; }
 
 /* その他パーツ */
 .circle-container{ position:relative; width:260px; height:260px; margin-bottom: 20px; }
@@ -319,7 +307,12 @@ function renderCalendar(){
     }
     for(let d=1; d<=daysInMonth; d++){
         const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-        const dayDoneTasks = tasks.filter(t => t.date === dateStr && t.status === "complete");
+        // 完了・未完の全タスクを取得
+        const dayTasks = tasks.filter(t => t.date === dateStr && (t.status === "complete" || t.status === "incomplete"));
+        
+        // 未完が上(incomplete)、完了が下(complete)になるようにソート
+        dayTasks.sort((a,b) => (a.status === "incomplete" ? -1 : 1));
+
         const weekDay = (firstDay + d - 1) % 7;
         const div = document.createElement("div");
         div.className = "calendar-day";
@@ -330,11 +323,19 @@ function renderCalendar(){
         if(weekDay === 6) colorClass = "sat";
         div.innerHTML = `<span class="day-num ${colorClass}">${d}</span>`;
         
-        if(dayDoneTasks.length > 0){
-            const mark = document.createElement("div");
-            mark.className = "has-record";
-            mark.innerText = dayDoneTasks[0].title; 
-            div.appendChild(mark);
+        // 作業タイトルをグリッド内に直接表示するコンテナ
+        if(dayTasks.length > 0){
+            const container = document.createElement("div");
+            container.className = "day-tasks-container";
+            
+            // 最大2つまで表示（セルが溢れないよう調整、それ以上はタップで詳細確認）
+            dayTasks.slice(0, 2).forEach(t => {
+                const label = document.createElement("div");
+                label.className = `grid-task-label ${t.status === 'complete' ? 'grid-done' : 'grid-incomplete'}`;
+                label.innerText = t.title;
+                container.appendChild(label);
+            });
+            div.appendChild(container);
         }
         grid.appendChild(div);
     }
@@ -343,7 +344,8 @@ function renderCalendar(){
 function showDayDetails(dateStr, dayNum){
     const tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
     const dayTasks = tasks.filter(t => t.date === dateStr && (t.status === "complete" || t.status === "incomplete"));
-    
+    dayTasks.sort((a,b) => (a.status === "incomplete" ? -1 : 1));
+
     document.getElementById("popupDateDisplay").innerText = `${dayNum}日の詳細`;
     const content = document.getElementById("dayPopupContent");
     content.innerHTML = "";
@@ -356,7 +358,7 @@ function showDayDetails(dateStr, dayNum){
             const isDone = t.status === "complete";
             div.className = `popup-task-item ${isDone ? 'task-done' : 'task-incomplete'}`;
             const timeStr = `${Math.floor(t.seconds/60)}分`;
-            div.innerHTML = `<div>${t.title}</div><span class="task-time">${isDone ? timeStr : '未完'}</span>`;
+            div.innerHTML = `<div>${t.title}</div><span style="font-size:11px; opacity:0.9;">${isDone ? timeStr : '未完'}</span>`;
             content.appendChild(div);
         });
     }
