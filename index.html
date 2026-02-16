@@ -33,7 +33,7 @@ html,body{
   background:var(--bg); display:none; padding:15px; box-sizing:border-box;
 }
 .screen.active{ display:block; }
-#calendarScreen.active { display: flex; flex-direction: column; position: relative; }
+#calendarScreen.active { display: flex; flex-direction: column; align-items: center; position: relative; }
 
 .center{ display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; }
 
@@ -50,56 +50,108 @@ html,body{
 }
 .active-tab{ background:var(--accent); }
 
-/* カレンダー */
+/* カレンダー全体設定 */
+#calendarMonth {
+  margin: 15px 0 10px 0;
+  font-weight: 600;
+  font-size: 20px; /* 年月を大きく */
+  color: var(--text);
+}
+
 .calendar-grid {
-  display: grid; grid-template-columns: repeat(7, 1fr);
-  border-top: 1px solid var(--border); border-left: 1px solid var(--border);
-  background: var(--bg); width: 100%; margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  width: 95%; /* 左右に少し余裕を持たせる */
+  height: 85%; /* 使えるスペースの約90%を使用 */
+  margin-top: 5px;
 }
+
 .calendar-day {
-  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  padding: 4px; display: flex; flex-direction: column;
-  overflow: hidden; cursor: pointer; position: relative;
-  min-height: 80px; /* セルの高さを固定して伸びないようにする */
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  min-height: 0; /* gridが均等に割るように調整 */
 }
+
 .day-num {
-  font-size: 10px; font-weight: 500; color: var(--muted);
-  position: absolute; top: 4px; left: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 1;
 }
 .sun { color: var(--sun-color) !important; }
 .sat { color: var(--sat-color) !important; }
 
 /* 日付枠内のタスク表示領域 */
 .day-tasks-container {
-  width: 100%; display: flex; flex-direction: column;
-  position: absolute; bottom: 4px; left: 0; right: 0;
-  gap: 1px; padding: 0 2px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  gap: 1px;
+  padding: 0 2px;
 }
 
 .grid-task-label {
-  color: #fff; border-radius: 2px;
-  width: 100%; font-size: 9px; /* 3つ入るように少し小さめ */
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding: 1px 2px; text-align: center;
-  box-sizing: border-box; font-weight: 500;
+  color: #fff;
+  border-radius: 2px;
+  width: 100%;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 2px;
+  text-align: center;
+  box-sizing: border-box;
+  font-weight: 500;
 }
 .grid-done { background-color: var(--accent); }
 .grid-incomplete { background-color: var(--purple); }
 
 /* ポップアップ */
 #dayPopup {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 90%; max-height: 70%; background: #fff; border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none;
-  flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-height: 70%;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  display: none;
+  flex-direction: column;
+  padding: 24px 20px;
+  z-index: 100;
+  box-sizing: border-box;
 }
-#dayPopup h4 { margin: 0 0 15px 0; font-size: 16px; font-weight: 500; text-align: center; }
+#dayPopup h4 { margin: 0 0 15px 0; font-size: 18px; font-weight: 500; text-align: center; }
 #dayPopupContent { overflow-y: auto; flex: 1; }
 
 .popup-task-label {
-  color: #fff; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 14px; font-weight: 500;
+  color: #fff;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
 }
 .popup-done { background-color: var(--accent); }
 .popup-incomplete { background-color: var(--purple); }
@@ -152,7 +204,7 @@ input{ padding:12px; border-radius:12px; border:1px solid #ccc; width:80%; font-
 </div>
 
 <div id="calendarScreen" class="screen">
-  <h3 id="calendarMonth" style="margin: 10px 0; font-weight: 500; font-size: 16px; text-align: center;">2026年 2月</h3>
+  <h3 id="calendarMonth">2026年 2月</h3>
   <div class="calendar-grid" id="calendarGrid"></div>
   
   <div id="dayPopup">
@@ -334,7 +386,6 @@ function renderCalendar(){
         if(dayTasks.length > 0){
             const container = document.createElement("div");
             container.className = "day-tasks-container";
-            // 最大3つまでに制限して表示
             dayTasks.slice(0, 3).forEach(t => {
                 const label = document.createElement("div");
                 label.className = `grid-task-label ${t.status === 'complete' ? 'grid-done' : 'grid-incomplete'}`;
