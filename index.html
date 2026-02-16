@@ -17,7 +17,7 @@
 :root {
   --accent: #8ED9B6;
   --accent-light: #CFEFE2;
-  --bg: #ECECEC; /* ここが背景色です。消えると白になります */
+  --bg: #ECECEC;
   --text: #333;
   --muted: #777;
   --border: #f2f2f2;
@@ -28,19 +28,37 @@
   --keyboard-gray: #A0A0A0;
   --light-gray: #dddddd;
   --completed-bg: #dfdfdf;
+  
+  /* iPhoneのセーフエリア（ノッチやホームバー）の変数を定義 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 html, body {
   margin: 0; padding: 0; height: 100%; overflow: hidden;
   font-family: 'Noto Sans JP', sans-serif;
-  background: var(--bg); /* ここで背景色を適用しています */
-  color: var(--text);
+  background: var(--bg); color: var(--text);
+  /* スクロールバウンス防止 */
+  overscroll-behavior: none;
 }
 
 /* --- 画面レイアウト --- */
 .screen {
-  position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 60px);
-  background: var(--bg); display: none; padding: 15px; box-sizing: border-box;
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%; /* 全画面 */
+  background: var(--bg); 
+  display: none; 
+  box-sizing: border-box;
+  
+  /* ★重要：コンテンツがバーやノッチに被らないようにパディングで調整★ */
+  padding-top: calc(15px + var(--safe-top)); 
+  padding-left: 15px;
+  padding-right: 15px;
+  /* 下部はタブバーの高さ(60px) + ホームバーの高さ + 余白 */
+  padding-bottom: calc(60px + var(--safe-bottom) + 15px);
 }
 .screen.active { display: block; }
 
@@ -55,6 +73,8 @@ html, body {
 button { 
   border: none; border-radius: 999px; padding: 14px 28px; font-size: 16px; margin: 8px; 
   cursor: pointer; font-family: inherit; transition: opacity 0.2s; 
+  /* タップ時のハイライトを消す */
+  -webkit-tap-highlight-color: transparent;
 }
 button:active { opacity: 0.7; }
 
@@ -82,7 +102,7 @@ button:active { opacity: 0.7; }
 }
 
 /* --- リスト表示 --- */
-#recordList { overflow-y: auto; height: 85%; }
+#recordList { overflow-y: auto; height: 100%; -webkit-overflow-scrolling: touch; }
 .task { 
   padding: 15px 12px; border-bottom: 1px solid #ddd; display: flex; align-items: center; 
   background: #fff; border-radius: 10px; margin-bottom: 8px; 
@@ -108,7 +128,7 @@ button:active { opacity: 0.7; }
 .calendar-grid { 
   display: grid; grid-template-columns: repeat(7, 1fr); 
   grid-auto-rows: 1fr; /* 高さ均等 */
-  background: #fff; width: 100%; height: 85%; 
+  background: #fff; width: 100%; height: 100%; /* 親要素に合わせる */
   border-radius: 12px; border: 1px solid var(--border); 
 }
 .calendar-day { 
@@ -135,13 +155,16 @@ button:active { opacity: 0.7; }
 .modal-overlay { 
   position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
   background: rgba(0,0,0,0.4); display: none; z-index: 90; 
+  /* モーダルもセーフエリアを考慮 */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 .modal { 
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
   width: 85%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
   display: none; flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box; text-align: center; 
 }
-#dayPopupContent { max-height: 250px; overflow-y: auto; margin: 15px 0; text-align: left; }
+#dayPopupContent { max-height: 250px; overflow-y: auto; margin: 15px 0; text-align: left; -webkit-overflow-scrolling: touch; }
 
 .popup-task-item { 
   padding: 10px; margin-bottom: 8px; border-radius: 6px; 
@@ -156,8 +179,20 @@ button:active { opacity: 0.7; }
 .time { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 52px; font-weight: 700; }
 input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; font-size: 16px; margin-bottom: 20px; font-family: inherit; }
 
-/* --- タブバー --- */
-.tabbar { position: absolute; bottom: 0; width: 100%; height: 60px; display: flex; background: var(--accent-light); z-index: 10; }
+/* --- タブバー (iPhone最適化) --- */
+.tabbar { 
+  position: absolute; 
+  bottom: 0; 
+  width: 100%; 
+  /* 高さは 60px + ホームバーの高さ */
+  height: calc(60px + var(--safe-bottom)); 
+  display: flex; 
+  background: var(--accent-light); 
+  z-index: 10; 
+  /* 中身（文字）がホームバーに被らないようにパディングを入れる */
+  padding-bottom: var(--safe-bottom);
+  box-sizing: border-box; /* パディングを含めた高さ計算 */
+}
 .tabbar div { flex: 1; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer; color: #fff; }
 .active-tab { background: var(--accent); }
 
@@ -216,12 +251,16 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
 </div>
 
 <div id="calendarScreen" class="screen">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <button class="nav-btn" onclick="changeMonth(-1)">&#60;&#60;</button>
-      <h3 id="calendarMonth" style="margin:0;">年月</h3>
-      <button class="nav-btn" onclick="changeMonth(1)">&#62;&#62;</button>
+  <div style="height: 100%; display: flex; flex-direction: column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-shrink: 0;">
+          <button class="nav-btn" onclick="changeMonth(-1)">&#60;&#60;</button>
+          <h3 id="calendarMonth" style="margin:0;">年月</h3>
+          <button class="nav-btn" onclick="changeMonth(1)">&#62;&#62;</button>
+      </div>
+      <div style="flex-grow: 1; overflow: hidden;">
+          <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
   </div>
-  <div class="calendar-grid" id="calendarGrid"></div>
 </div>
 
 <div class="tabbar">
@@ -401,7 +440,6 @@ function deleteTask(e, id) {
 // --- カレンダー描画 ---
 function changeMonth(offset) {
     displayMonth += offset;
-    // 日付オブジェクトを使って年またぎを自動計算
     const d = new Date(displayYear, displayMonth, 1);
     displayYear = d.getFullYear();
     displayMonth = d.getMonth();
@@ -413,7 +451,6 @@ function renderCalendar(){
     const monthLabel=document.getElementById("calendarMonth");
     grid.innerHTML=""; 
     
-    // 表示用の年月を使用
     monthLabel.innerText=`${displayYear}年 ${displayMonth+1}月`;
     
     const firstDay = new Date(displayYear, displayMonth, 1).getDay();
@@ -422,7 +459,6 @@ function renderCalendar(){
 
     for(let i=0;i<firstDay;i++) grid.appendChild(document.createElement("div")).className="calendar-day";
     for(let d=1;d<=daysInMonth;d++){
-        // データ照合用の日付文字列生成
         const dateStr=`${displayYear}-${(displayMonth+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
         const dayTasks=tasks.filter(t=>t.date===dateStr);
         const div=document.createElement("div"); 
@@ -486,9 +522,8 @@ function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScree
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
 function showResume(){ showScreen("recordScreen"); openRecordTab(); }
 
-// --- オートセーブ (ブラウザリロード対策) ---
+// --- オートセーブ ---
 window.addEventListener('load', () => {
-    // 起動時に現在の年月を設定
     const now = new Date();
     displayYear = now.getFullYear();
     displayMonth = now.getMonth();
@@ -498,15 +533,12 @@ window.addEventListener('load', () => {
         const s = JSON.parse(session);
         state=s.state; currentTask=s.currentTask; totalSeconds=s.totalSeconds;
         
-        // 保存された状態から復元（経過時間補正）
         if(state === 'work') {
              startTimestamp = performance.now() - (totalSeconds * 1000);
         } else if (state === 'prep') {
-             // Prep中の場合、保存した経過時間を考慮して再計算
              const elapsedPrep = (s.elapsedPrep || 0);
              startTimestamp = performance.now() - (elapsedPrep * 1000);
         } else if (state === 'choice') {
-             // Choice中の場合、待ち時間を考慮
              choiceTimestamp = performance.now() - ((s.elapsedChoice || 0) * 1000);
         }
         
@@ -519,7 +551,6 @@ window.addEventListener('beforeunload', () => {
     if(state && currentTask) {
         const data = {
             state, currentTask, totalSeconds,
-            // 各状態ごとの経過時間を保存
             elapsedPrep: (state === 'prep') ? (performance.now() - startTimestamp) / 1000 : 0,
             elapsedChoice: (state === 'choice') ? (performance.now() - choiceTimestamp) / 1000 : 0
         };
