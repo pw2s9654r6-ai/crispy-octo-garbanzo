@@ -102,7 +102,7 @@ button:active { opacity: 0.7; }
 .calendar-day { 
   border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); 
   padding: 4px; min-height: 80px; display: flex; flex-direction: column; 
-  justify-content: flex-end;
+  justify-content: flex-end; /* 下詰め */
   position: relative; overflow: hidden; cursor: pointer;
 }
 .day-num { 
@@ -218,75 +218,43 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
 let state=null, totalSeconds=0, currentTask=null, animationId=null, startTimestamp=null, choiceTimestamp=null;
 let pendingData = null; 
 
-// ★★★ 音声関連の修正 ★★★
-let audioCtx = null; // グローバルに定義
-
-// ユーザー操作時に必ず呼ぶ関数（音のアンロック）
+// --- 音声関連 ---
+let audioCtx = null;
 function unlockAudio() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    // 無音を一瞬再生してアンロック
+    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    if (audioCtx.state === 'suspended') { audioCtx.resume(); }
     const buffer = audioCtx.createBuffer(1, 1, 22050);
     const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
+    source.buffer = buffer; source.connect(audioCtx.destination); source.start(0);
 }
-
-// 目覚まし風アラーム（ピピピピ）再生関数
 function playAlarm() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
     const t = audioCtx.currentTime;
-    
-    // 4回音を鳴らす (ピ・ピ・ピ・ピ)
     for (let i = 0; i < 4; i++) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        osc.type = 'square'; // 目覚ましっぽい矩形波
-        osc.frequency.setValueAtTime(880, t + i * 0.2); // 音程 (ラ)
-
-        // 音の長さ制御
-        gain.gain.setValueAtTime(0.05, t + i * 0.2);
-        gain.gain.setValueAtTime(0, t + i * 0.2 + 0.1); // 0.1秒鳴らす
-
-        osc.start(t + i * 0.2);
-        osc.stop(t + i * 0.2 + 0.1);
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'square'; osc.frequency.setValueAtTime(880, t + i * 0.2);
+        gain.gain.setValueAtTime(0.05, t + i * 0.2); gain.gain.setValueAtTime(0, t + i * 0.2 + 0.1);
+        osc.start(t + i * 0.2); osc.stop(t + i * 0.2 + 0.1);
     }
 }
-// ★★★ 音声修正終わり ★★★
 
 const prepDuration=60, autoContinueTimeout=180;
 const canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
 
-// --- 新規開始 ---
+// --- 開始・再開 ---
 function startNewTask() {
-    // ★ここでもアンロック
     unlockAudio();
-
     const title = document.getElementById("titleInput").value.trim();
     if(!title) return;
-
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
     currentTask = { title: title, status: "active", seconds: 0, date: dateStr, id: Date.now() };
-
     state = "prep"; totalSeconds = 0; startTimestamp = performance.now();
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
-// --- 再開 ---
 function startFromRecord(title, id) {
-    // ★ここでもアンロック（念のため）
     unlockAudio();
-
     pendingData = { title: title, id: id };
     document.getElementById("modalTaskTitle").innerText = title;
     document.getElementById("prepSelectModal").style.display = "flex";
@@ -294,10 +262,8 @@ function startFromRecord(title, id) {
 }
 
 function confirmResume(usePrep) {
-    // ★ここでもアンロック
     unlockAudio();
     closeModals();
-    
     const tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     const existing = tasks.find(t => t.id === pendingData.id);
     const initialSeconds = existing ? existing.seconds : 0;
@@ -321,13 +287,8 @@ function animationLoop(){
         let progress = Math.min(elapsed / prepDuration, 1);
         drawCircle(progress);
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
-        
         if(elapsed >= prepDuration){
-            state = "choice";
-            totalSeconds = currentTask.seconds + 60;
-            choiceTimestamp = now;
-            playAlarm(); // ★ここでアラーム再生
-            renderButtons();
+            state = "choice"; totalSeconds = currentTask.seconds + 60; choiceTimestamp = now; playAlarm(); renderButtons();
         }
     } else if(state === "choice"){
         const waitTime = Math.floor((now - choiceTimestamp) / 1000);
@@ -337,22 +298,19 @@ function animationLoop(){
         totalSeconds = Math.floor((now - startTimestamp) / 1000);
         drawCircle(1); updateDisplay(totalSeconds);
     }
-    
     if(currentTask && state !== "choice") currentTask.seconds = totalSeconds;
     animationId = requestAnimationFrame(animationLoop);
 }
 
 function continueTask(){
-    // ★ここでもアンロック
     unlockAudio();
     const now = performance.now();
     const waitTime = Math.floor((now - choiceTimestamp) / 1000);
-    state = "work";
-    totalSeconds += waitTime;
-    startTimestamp = now - (totalSeconds * 1000);
+    state = "work"; totalSeconds += waitTime; startTimestamp = now - (totalSeconds * 1000);
     renderButtons();
 }
 
+// --- データ保存 ---
 function saveTask(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     const idx = tasks.findIndex(t => t.id === currentTask.id);
@@ -360,10 +318,17 @@ function saveTask(){
     localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
+// --- リスト描画 (未完を上に) ---
 function renderRecords(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     let list = document.getElementById("recordList"); list.innerHTML = "";
-    tasks.forEach((t) => {
+    
+    // ★修正点：未完を先に、完了を後に並び替え
+    const incompleteTasks = tasks.filter(t => t.status !== 'complete');
+    const completeTasks = tasks.filter(t => t.status === 'complete');
+    const sortedTasks = [...incompleteTasks, ...completeTasks];
+
+    sortedTasks.forEach((t) => {
         let div = document.createElement("div");
         div.className = `task ${t.status === 'complete' ? 'completed-task' : ''}`;
         div.innerHTML = `
@@ -384,6 +349,7 @@ function deleteTask(e, id) {
     renderRecords();
 }
 
+// --- カレンダー描画 ---
 function renderCalendar(){
     const grid=document.getElementById("calendarGrid");
     const monthLabel=document.getElementById("calendarMonth");
@@ -435,6 +401,7 @@ function showDayDetails(dateStr, dayNum){
     document.getElementById("modalOverlay").style.display = "block";
 }
 
+// --- 共通 ---
 function formatTimeHHMM(s) { const m = Math.floor(s/60), mm = m % 60, hh = Math.floor(m/60); return `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`; }
 function updateDisplay(s){ let min=Math.floor(s/60), sec=s%60; document.getElementById("timeDisplay").innerText=`${min}:${sec.toString().padStart(2,"0")}`; }
 function drawCircle(p){ ctx.clearRect(0,0,260,260); ctx.lineWidth=10; ctx.strokeStyle="#f0f0f0"; ctx.beginPath(); ctx.arc(130,130,110,0,Math.PI*2); ctx.stroke(); ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent'); ctx.lineCap='round'; ctx.beginPath(); ctx.arc(130,130,110,-Math.PI/2,(Math.PI*2*p)-Math.PI/2); ctx.stroke(); }
@@ -456,7 +423,6 @@ function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScree
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
 function showResume(){ showScreen("recordScreen"); openRecordTab(); }
 
-// --- オートセーブ ---
 window.addEventListener('load', () => {
     const session = localStorage.getItem("active_session");
     if(session) {
