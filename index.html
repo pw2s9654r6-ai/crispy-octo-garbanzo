@@ -21,7 +21,7 @@
   --sat-color: #90caf9;
   --purple: #D1B3FF;
   --soft-orange: #FFB74D;
-  --keyboard-gray: #A0A0A0;
+  --keyboard-gray: #A0A0A0; /* 終了ボタン用（薄いグレー） */
   --light-gray: #dddddd;
   --completed-bg: #dfdfdf;
 }
@@ -102,7 +102,7 @@ button:active { opacity: 0.7; }
 .calendar-day { 
   border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); 
   padding: 4px; min-height: 80px; display: flex; flex-direction: column; 
-  justify-content: flex-end; /* 下詰め */
+  justify-content: flex-end; /* ★下詰め★ */
   position: relative; overflow: hidden; cursor: pointer;
 }
 .day-num { 
@@ -162,7 +162,7 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
     <div class="title-logo">FOCUS TIMER</div>
     <input id="titleInput" placeholder="タイトル">
     <button class="primary" onclick="startNewTask()">開始</button>
-    <button class="link-btn" onclick="openRecordTab()">記録一覧から選ぶ</button>
+    <button class="link-btn" onclick="openRecordTab()">作業を再開する</button>
   </div>
 </div>
 
@@ -242,17 +242,20 @@ function playAlarm() {
 const prepDuration=60, autoContinueTimeout=180;
 const canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
 
-// --- 開始・再開 ---
+// --- 新規開始（ポップアップなし） ---
 function startNewTask() {
     unlockAudio();
     const title = document.getElementById("titleInput").value.trim();
     if(!title) return;
+
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
     currentTask = { title: title, status: "active", seconds: 0, date: dateStr, id: Date.now() };
+
     state = "prep"; totalSeconds = 0; startTimestamp = performance.now();
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
+// --- 再開（ポップアップあり） ---
 function startFromRecord(title, id) {
     unlockAudio();
     pendingData = { title: title, id: id };
@@ -287,8 +290,12 @@ function animationLoop(){
         let progress = Math.min(elapsed / prepDuration, 1);
         drawCircle(progress);
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
+        
         if(elapsed >= prepDuration){
-            state = "choice"; totalSeconds = currentTask.seconds + 60; choiceTimestamp = now; playAlarm(); renderButtons();
+            state = "choice";
+            totalSeconds = currentTask.seconds + 60; 
+            choiceTimestamp = now;
+            playAlarm(); renderButtons();
         }
     } else if(state === "choice"){
         const waitTime = Math.floor((now - choiceTimestamp) / 1000);
@@ -298,6 +305,7 @@ function animationLoop(){
         totalSeconds = Math.floor((now - startTimestamp) / 1000);
         drawCircle(1); updateDisplay(totalSeconds);
     }
+    
     if(currentTask && state !== "choice") currentTask.seconds = totalSeconds;
     animationId = requestAnimationFrame(animationLoop);
 }
@@ -323,7 +331,7 @@ function renderRecords(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     let list = document.getElementById("recordList"); list.innerHTML = "";
     
-    // ★修正点：未完を先に、完了を後に並び替え
+    // 並び替え：未完 > 完了
     const incompleteTasks = tasks.filter(t => t.status !== 'complete');
     const completeTasks = tasks.filter(t => t.status === 'complete');
     const sortedTasks = [...incompleteTasks, ...completeTasks];
@@ -423,6 +431,7 @@ function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScree
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
 function showResume(){ showScreen("recordScreen"); openRecordTab(); }
 
+// --- オートセーブ ---
 window.addEventListener('load', () => {
     const session = localStorage.getItem("active_session");
     if(session) {
