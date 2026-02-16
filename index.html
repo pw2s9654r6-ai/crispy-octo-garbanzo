@@ -71,6 +71,12 @@ button:active { opacity: 0.7; }
   background: none; color: var(--accent); text-decoration: underline; border: none; cursor: pointer;
 }
 
+/* カレンダー移動ボタン */
+.nav-btn {
+  background: none; color: var(--accent); font-size: 18px; font-weight: bold;
+  padding: 5px 15px; min-width: auto; margin: 0;
+}
+
 /* --- リスト表示 --- */
 #recordList { overflow-y: auto; height: 85%; }
 .task { 
@@ -206,7 +212,11 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
 </div>
 
 <div id="calendarScreen" class="screen">
-  <h3 id="calendarMonth" style="text-align:center;">年月</h3>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <button class="nav-btn" onclick="changeMonth(-1)">&#60;&#60;</button>
+      <h3 id="calendarMonth" style="margin:0;">年月</h3>
+      <button class="nav-btn" onclick="changeMonth(1)">&#62;&#62;</button>
+  </div>
   <div class="calendar-grid" id="calendarGrid"></div>
 </div>
 
@@ -219,6 +229,10 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
 <script>
 let state=null, totalSeconds=0, currentTask=null, animationId=null, startTimestamp=null, choiceTimestamp=null;
 let pendingData = null; 
+
+// --- カレンダー用状態変数 ---
+let displayYear = new Date().getFullYear();
+let displayMonth = new Date().getMonth();
 
 // --- 音声関連 ---
 let audioCtx = null;
@@ -244,7 +258,7 @@ function playAlarm() {
 const prepDuration=60, autoContinueTimeout=180;
 const canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
 
-// --- 新規開始（ポップアップなし・新規ID） ---
+// --- 新規開始 ---
 function startNewTask() {
     unlockAudio();
     const title = document.getElementById("titleInput").value.trim();
@@ -257,7 +271,7 @@ function startNewTask() {
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
-// --- 再開（ポップアップあり・既存ID・時間引継ぎ） ---
+// --- 再開 ---
 function startFromRecord(title, id) {
     unlockAudio();
     pendingData = { title: title, id: id };
@@ -272,9 +286,10 @@ function confirmResume(usePrep) {
     const tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     const existing = tasks.find(t => t.id === pendingData.id);
     
-    // ★ここが重要：既存の時間を取得する
+    // 既存時間を通算
     const initialSeconds = existing ? existing.seconds : 0;
     
+    // 日付は再開日に更新
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
 
     currentTask = { 
@@ -285,8 +300,7 @@ function confirmResume(usePrep) {
         id: pendingData.id 
     };
 
-    // ★重要：Prepありの場合でも、totalSecondsは既存時間(initialSeconds)で初期化する
-    // ただし、Prep中の表示は loop 内で別計算されるため問題ない
+    // totalSecondsは通算時間で開始
     state = usePrep ? "prep" : "work";
     totalSeconds = initialSeconds; 
     
@@ -308,19 +322,18 @@ function animationLoop(){
         let progress = Math.min(elapsed / prepDuration, 1);
         drawCircle(progress);
         
-        // Prep中は「残り時間」を表示 (totalSecondsは裏で保持したまま)
+        // Prep中：残り1分カウントダウン
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
         
         if(elapsed >= prepDuration){
             state = "choice";
-            totalSeconds += 60; // 準備時間(60秒)を通算に加算
+            totalSeconds += 60; // 通算に60秒加算
             choiceTimestamp = now;
             playAlarm(); renderButtons();
         }
     } else if(state === "choice"){
         const waitTime = Math.floor((now - choiceTimestamp) / 1000);
-        
-        // ★修正：選択待機中は表示を「0:00」にする
+        // Choice中：表示は0:00固定（裏で時間は進む）
         updateDisplay(0);
         
         if(waitTime >= autoContinueTimeout) continueTask();
@@ -330,7 +343,6 @@ function animationLoop(){
         updateDisplay(totalSeconds);
     }
     
-    // 待機中以外はデータを更新
     if(currentTask && state !== "choice") currentTask.seconds = totalSeconds;
     animationId = requestAnimationFrame(animationLoop);
 }
@@ -338,10 +350,9 @@ function animationLoop(){
 function continueTask(){
     unlockAudio();
     const now = performance.now();
-    // 待機時間を加算してWorkへ移行
     const waitTime = Math.floor((now - choiceTimestamp) / 1000);
     state = "work"; 
-    totalSeconds += waitTime; 
+    totalSeconds += waitTime; // 待機時間も通算
     startTimestamp = now - (totalSeconds * 1000);
     renderButtons();
 }
@@ -385,25 +396,39 @@ function deleteTask(e, id) {
 }
 
 // --- カレンダー描画 ---
+function changeMonth(offset) {
+    displayMonth += offset;
+    // 日付オブジェクトを使って年またぎを自動計算
+    const d = new Date(displayYear, displayMonth, 1);
+    displayYear = d.getFullYear();
+    displayMonth = d.getMonth();
+    renderCalendar();
+}
+
 function renderCalendar(){
     const grid=document.getElementById("calendarGrid");
     const monthLabel=document.getElementById("calendarMonth");
     grid.innerHTML=""; 
-    const now=new Date(), year=now.getFullYear(), month=now.getMonth();
-    monthLabel.innerText=`${year}年 ${month+1}月`;
-    const firstDay=new Date(year,month,1).getDay();
-    const daysInMonth=new Date(year,month+1,0).getDate();
-    const tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+    
+    // 表示用の年月を使用
+    monthLabel.innerText=`${displayYear}年 ${displayMonth+1}月`;
+    
+    const firstDay = new Date(displayYear, displayMonth, 1).getDay();
+    const daysInMonth = new Date(displayYear, displayMonth+1, 0).getDate();
+    const tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
 
     for(let i=0;i<firstDay;i++) grid.appendChild(document.createElement("div")).className="calendar-day";
     for(let d=1;d<=daysInMonth;d++){
-        const dateStr=`${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+        // データ照合用の日付文字列生成
+        const dateStr=`${displayYear}-${(displayMonth+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
         const dayTasks=tasks.filter(t=>t.date===dateStr);
         const div=document.createElement("div"); 
         div.className="calendar-day";
         div.onclick = () => showDayDetails(dateStr, d);
-        const weekDay=(firstDay+d-1)%7;
+        
+        const weekDay = new Date(displayYear, displayMonth, d).getDay();
         let dayClass=""; if(weekDay===0) dayClass="sun"; if(weekDay===6) dayClass="sat";
+        
         div.innerHTML=`<span class="day-num ${dayClass}">${d}</span>`;
         dayTasks.slice(0,4).forEach(t=>{
             const label=document.createElement("div"); 
@@ -458,37 +483,42 @@ function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScree
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
 function showResume(){ showScreen("recordScreen"); openRecordTab(); }
 
-// --- オートセーブ (リロード対策) ---
+// --- オートセーブ (ブラウザリロード対策) ---
 window.addEventListener('load', () => {
+    // 起動時に現在の年月を設定
+    const now = new Date();
+    displayYear = now.getFullYear();
+    displayMonth = now.getMonth();
+
     const session = localStorage.getItem("active_session");
     if(session) {
         const s = JSON.parse(session);
-        state=s.state; currentTask=s.currentTask; startTimestamp=s.startTimestamp; totalSeconds=s.totalSeconds; choiceTimestamp=s.choiceTimestamp;
-        // ロード時は一時データを消す
-        localStorage.removeItem("active_session");
+        state=s.state; currentTask=s.currentTask; totalSeconds=s.totalSeconds;
         
-        // ★修正：リロード時に現在の時刻とstartTimestampの差分をチェックして補正する必要があるが、
-        // ここでは「最後に保存された状態」から再開し、経過時間は加算されるよう startTimestamp を現在時刻基準で再計算する
-        // totalSecondsは保存された時点の通算時間なので、そこから再開する
+        // 保存された状態から復元（経過時間補正）
         if(state === 'work') {
              startTimestamp = performance.now() - (totalSeconds * 1000);
         } else if (state === 'prep') {
-             // prepの場合は残り時間を維持したいが、簡略化のためprepの最初から、あるいは経過時間を考慮
-             // 今回はprepの経過時間も保存されている想定で復元
-             const elapsed = (Date.now() - (s.saveTime || Date.now())) / 1000;
-             // 厳密な復元は複雑になるため、ここでは「中断時点の秒数」から再開とする
-             startTimestamp = performance.now() - ((s.elapsedPrep || 0) * 1000);
+             // Prep中の場合、保存した経過時間を考慮して再計算
+             const elapsedPrep = (s.elapsedPrep || 0);
+             startTimestamp = performance.now() - (elapsedPrep * 1000);
+        } else if (state === 'choice') {
+             // Choice中の場合、待ち時間を考慮
+             choiceTimestamp = performance.now() - ((s.elapsedChoice || 0) * 1000);
         }
         
+        localStorage.removeItem("active_session");
         showScreen("timerScreen"); renderButtons(); animationLoop();
     }
 });
+
 window.addEventListener('beforeunload', () => {
     if(state && currentTask) {
         const data = {
-            state, currentTask, startTimestamp, totalSeconds, choiceTimestamp,
-            saveTime: Date.now(),
-            elapsedPrep: (performance.now() - startTimestamp) / 1000 // Prep経過時間保存用
+            state, currentTask, totalSeconds,
+            // 各状態ごとの経過時間を保存
+            elapsedPrep: (state === 'prep') ? (performance.now() - startTimestamp) / 1000 : 0,
+            elapsedChoice: (state === 'choice') ? (performance.now() - choiceTimestamp) / 1000 : 0
         };
         localStorage.setItem("active_session", JSON.stringify(data));
     }
