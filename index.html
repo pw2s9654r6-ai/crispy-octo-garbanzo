@@ -198,7 +198,100 @@ function completeTask(){
     document.getElementById("congratsTime").innerText=formatTimeHHMM(currentTask.seconds);
     document.getElementById("congratsPopup").style.display="flex"; fireConfetti();
 }
-function saveTask(){ let tasks=JSON.parse(localStorage.getItem("tasks")||"[]"); tasks.unshift(currentTask); localStorage.setItem("tasks",JSON.stringify(tasks)); }
+/* --- 負荷対策済み：状態の保存と復元 --- */
+
+// 状態を保存する関数（重い処理ではない）
+function saveActiveState() {
+    if (state && currentTask) {
+        const activeData = {
+            state: state,
+            currentTask: currentTask,
+            startTimestamp: startTimestamp,
+            choiceTimestamp: choiceTimestamp,
+            totalSeconds: totalSeconds,
+            realTimeWhenSaved: Date.now() // 保存した瞬間の現実時刻
+        };
+        localStorage.setItem("active_timer_state", JSON.stringify(activeData));
+    }
+}
+
+// ページを閉じる・バックグラウンドに行く瞬間に保存（これが一番効率的）
+window.addEventListener('beforeunload', saveActiveState);
+window.addEventListener('pagehide', saveActiveState); // iOS/Safari対策
+
+// 1分に1回だけバックアップ（念のため）
+setInterval(() => {
+    if (state) saveActiveState();
+}, 60000);
+
+// 復元ロジック
+function loadActiveState() {
+    const data = localStorage.getItem("active_timer_state");
+    if (!data) return;
+
+    const active = JSON.parse(data);
+    const nowRealTime = Date.now();
+    const passedRealSeconds = Math.floor((nowRealTime - active.realTimeWhenSaved) / 1000);
+
+    state = active.state;
+    currentTask = active.currentTask;
+
+    if (state === "work") {
+        // 現実の経過時間を加算してタイマーを復元
+        totalSeconds = active.totalSeconds + passedRealSeconds;
+        // 開始時間を逆算してアニメーションを同期
+        startTimestamp = performance.now() - (totalSeconds * 1000);
+    } else {
+        // 準備中や選択中なら、離脱した時間はカウントせずその場から再開
+        totalSeconds = active.totalSeconds;
+        startTimestamp = performance.now() - (totalSeconds * 1000);
+        if(active.choiceTimestamp) choiceTimestamp = performance.now();
+    }
+
+    showScreen("timerScreen");
+    renderButtons();
+    animationLoop();
+}
+
+function clearActiveState() {
+    localStorage.removeItem("active_timer_state");
+}
+
+// 起動時に1回だけチェック
+window.addEventListener('DOMContentLoaded', loadActiveState);
+
+/* --- animationLoop の修正 --- */
+function animationLoop(){
+    const now = performance.now();
+    if(state === "prep"){
+        const elapsed = (now - startTimestamp) / 1000;
+        let progress = Math.min(elapsed / prepDuration, 1);
+        drawCircle(progress);
+        updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
+        if(elapsed >= prepDuration){
+            state = "choice"; totalSeconds = 60; choiceTimestamp = now; beep(); renderButtons();
+        }
+    } else if(state === "choice"){
+        if((now - choiceTimestamp) / 1000 >= autoContinueTimeout) continueTask();
+    } else if(state === "work"){
+        totalSeconds = Math.floor((now - startTimestamp) / 1000);
+        drawCircle(1);
+        updateDisplay(totalSeconds);
+    }
+    
+    // ここで saveActiveState() を呼ばない！（負荷対策）
+    if(currentTask) currentTask.seconds = totalSeconds;
+    
+    animationId = requestAnimationFrame(animationLoop);
+}
+
+// 完了・終了時には必ず一時データを消す
+function reset(){
+    state = null; currentTask = null;
+    clearActiveState(); // ★忘れずに追加
+    // ...あとの処理は同じ...
+}
+  function saveTask(){ let tasks=JSON.parse(localStorage.getItem("tasks")||"[]"); tasks.unshift(currentTask); localStorage.setItem("tasks",JSON.stringify(tasks)); }
 function reset(){ state=null; currentTask=null; document.getElementById("congratsPopup").style.display="none"; showScreen("titleScreen"); document.getElementById("titleInput").value=""; updateTabs('tabTimer'); }
 
 function renderButtons(){
