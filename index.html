@@ -53,7 +53,6 @@ html, body {
   padding-top: calc(15px + var(--safe-top)); 
   padding-left: 15px;
   padding-right: 15px;
-  /* 下の余白：タブバーが浮いている分、コンテンツが隠れないように広めに取る */
   padding-bottom: calc(90px + var(--safe-bottom));
   
   overflow: hidden; 
@@ -133,52 +132,60 @@ button:active { opacity: 0.7; }
 .time { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 52px; font-weight: 700; }
 input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; font-size: 16px; margin-bottom: 20px; font-family: inherit; }
 
-/* --- タブバー (浮遊カプセルデザイン) --- */
+/* --- タブバー (横幅いっぱい拡大版) --- */
 .tabbar { 
   position: fixed; 
-  /* 画面下から少し浮かせる + セーフエリア確保 */
   bottom: calc(15px + env(safe-area-inset-bottom)); 
   left: 0; 
   width: 100%; 
   height: auto;
   display: flex; 
-  justify-content: center; /* 中央寄せ */
-  align-items: center;
-  gap: 12px; /* カプセル同士の隙間 */
-  background: transparent; /* バー自体の背景は透明 */
+  /* ここ修正：中央寄せではなく、全体に広げる */
+  justify-content: space-between;
+  
+  /* 画面端との余白を最小限に設定 (左右10px) */
+  padding: 0 10px;
+  box-sizing: border-box; /* パディングを含めて幅100%にする */
+  
+  /* ボタン同士の隙間を少し狭める */
+  gap: 8px; 
+  
+  background: transparent; 
   z-index: 999; 
-  pointer-events: none; /* 隙間のタップは裏側に通す */
+  pointer-events: none; 
 }
 
 .tabbar div { 
-  pointer-events: auto; /* ボタン自体はタップ可能に */
+  pointer-events: auto; 
   
-  /* 基本デザイン（未選択時） */
-  background: #fff; /* 白背景で清潔感を */
-  color: var(--muted); /* 文字はグレー */
+  /* ここ修正：3等分して幅いっぱいに広げる */
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  background: #fff; 
+  color: var(--muted); 
   border: 1px solid transparent;
   
-  padding: 12px 20px;
-  border-radius: 30px; /* カプセル型 */
+  /* パディングは上下のみ指定、横はflexで広がる */
+  padding: 14px 0;
+  
+  border-radius: 30px; 
   font-weight: 600; 
   font-size: 13px;
   cursor: pointer; 
   
-  /* 影をつけて浮かせる */
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  
-  /* アニメーション設定 */
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  transform: scale(0.95); /* デフォルトは少し小さめ */
+  transform: scale(0.98); 
 }
 
-/* 選択中のタブ（カプセル） */
 .tabbar div.active-tab { 
-  background: var(--accent); /* テーマカラーで塗りつぶし */
-  color: #fff; /* 文字は白 */
-  
-  transform: scale(1.1); /* グッと大きく */
-  box-shadow: 0 6px 16px rgba(142, 217, 182, 0.5); /* 色付きの影で発光感を */
+  background: var(--accent); 
+  color: #fff; 
+  transform: scale(1.05); /* 選択時は少し大きく */
+  box-shadow: 0 6px 16px rgba(142, 217, 182, 0.5); 
   z-index: 10;
 }
 
@@ -461,4 +468,3 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
