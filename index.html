@@ -53,8 +53,8 @@ html, body {
   padding-top: calc(15px + var(--safe-top)); 
   padding-left: 15px;
   padding-right: 15px;
-  /* 下の余白：タブバーの高さ(60px + safe-bottom) + 余裕 */
-  padding-bottom: calc(60px + var(--safe-bottom) + 20px);
+  /* 下の余白：タブバーが浮いている分、コンテンツが隠れないように広めに取る */
+  padding-bottom: calc(90px + var(--safe-bottom));
   
   overflow: hidden; 
 }
@@ -133,43 +133,53 @@ button:active { opacity: 0.7; }
 .time { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 52px; font-weight: 700; }
 input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; font-size: 16px; margin-bottom: 20px; font-family: inherit; }
 
-/* --- タブバー (ここが修正版！) --- */
+/* --- タブバー (浮遊カプセルデザイン) --- */
 .tabbar { 
   position: fixed; 
-  /* ★重要：これで物理的な一番下に張り付く */
-  bottom: 0; 
+  /* 画面下から少し浮かせる + セーフエリア確保 */
+  bottom: calc(15px + env(safe-area-inset-bottom)); 
   left: 0; 
   width: 100%; 
+  height: auto;
   display: flex; 
+  justify-content: center; /* 中央寄せ */
+  align-items: center;
+  gap: 12px; /* カプセル同士の隙間 */
+  background: transparent; /* バー自体の背景は透明 */
   z-index: 999; 
-  /* 親要素自体の高さ指定は消し、中身に任せる */
+  pointer-events: none; /* 隙間のタップは裏側に通す */
 }
 
 .tabbar div { 
-  flex: 1; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
+  pointer-events: auto; /* ボタン自体はタップ可能に */
+  
+  /* 基本デザイン（未選択時） */
+  background: #fff; /* 白背景で清潔感を */
+  color: var(--muted); /* 文字はグレー */
+  border: 1px solid transparent;
+  
+  padding: 12px 20px;
+  border-radius: 30px; /* カプセル型 */
   font-weight: 600; 
+  font-size: 13px;
   cursor: pointer; 
-  color: #fff; 
   
-  background: var(--accent-light);
-
-  /* ★ここがポイント！ */
-  /* 「ボタンの高さ60px」 ＋ 「セーフエリア」 を高さにする */
-  height: calc(60px + env(safe-area-inset-bottom));
+  /* 影をつけて浮かせる */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   
-  /* パディングで中身（文字）をセーフエリア分だけ上に押し上げる */
-  /* これにより、背景色は下まで伸び、文字は浮いた状態になる */
-  padding-bottom: env(safe-area-inset-bottom);
-  
-  box-sizing: border-box;
+  /* アニメーション設定 */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transform: scale(0.95); /* デフォルトは少し小さめ */
 }
 
-/* 選択中のタブ：背景色が一番下まで適用される */
+/* 選択中のタブ（カプセル） */
 .tabbar div.active-tab { 
-  background: var(--accent); 
+  background: var(--accent); /* テーマカラーで塗りつぶし */
+  color: #fff; /* 文字は白 */
+  
+  transform: scale(1.1); /* グッと大きく */
+  box-shadow: 0 6px 16px rgba(142, 217, 182, 0.5); /* 色付きの影で発光感を */
+  z-index: 10;
 }
 
 .particle { position: fixed; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 9999; }
@@ -451,3 +461,4 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
