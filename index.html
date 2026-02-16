@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -28,7 +28,7 @@
   --light-gray: #dddddd;
   --completed-bg: #dfdfdf;
   
-  /* セーフエリア変数（デフォルト値を設定して保険をかける） */
+  /* セーフエリア変数 */
   --safe-top: env(safe-area-inset-top, 20px);
   --safe-bottom: env(safe-area-inset-bottom, 20px);
 }
@@ -39,6 +39,7 @@ html, body {
   background: var(--bg); color: var(--text);
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* --- 画面レイアウト --- */
@@ -49,10 +50,10 @@ html, body {
   display: none; 
   box-sizing: border-box;
   
-  /* コンテンツがバーに隠れないよう余白調整 */
   padding-top: calc(15px + var(--safe-top)); 
   padding-left: 15px;
   padding-right: 15px;
+  /* コンテンツがバーに隠れないよう、見た目の高さ分だけ余白を空ける */
   padding-bottom: calc(60px + var(--safe-bottom) + 20px);
   
   overflow: hidden; 
@@ -71,6 +72,7 @@ button {
   border: none; border-radius: 999px; padding: 14px 28px; font-size: 16px; margin: 8px; 
   cursor: pointer; font-family: inherit; transition: opacity 0.2s; 
   -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
 }
 button:active { opacity: 0.7; }
 .primary { background: var(--accent); color: #fff; font-weight: bold; min-width: 120px; }
@@ -131,16 +133,19 @@ button:active { opacity: 0.7; }
 .time { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 52px; font-weight: 700; }
 input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; font-size: 16px; margin-bottom: 20px; font-family: inherit; }
 
-/* --- タブバー (完全解決版) --- */
+/* --- タブバー (タップ回避・色伸び対応版) --- */
 .tabbar { 
   position: fixed; 
-  bottom: 0; 
-  left: 0;
+  /* ★重要：ホームバーエリア(safe-bottom)の上に配置する */
+  bottom: env(safe-area-inset-bottom);
+  left: 0; 
   width: 100%; 
+  height: 60px;
   display: flex; 
-  background: var(--accent-light); 
+  background: transparent; /* 背景は個々のボタンに任せる */
   z-index: 999; 
-  box-shadow: 0 -1px 5px rgba(0,0,0,0.05);
+  /* シャドウは下に伸びるので、親要素で切られないようにする */
+  overflow: visible;
 }
 
 .tabbar div { 
@@ -151,18 +156,19 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
   font-weight: 600; 
   cursor: pointer; 
   color: #fff; 
+  height: 60px; /* 高さはきっちり60px */
   
-  /* ★ここがポイント！ */
-  /* ボタン自体の高さを「60px + ホームバーの高さ」にする */
-  height: calc(60px + var(--safe-bottom));
-  
-  /* 下にパディングを入れて、文字を上に押し上げる */
-  padding-bottom: var(--safe-bottom);
-  
-  /* これにより、背景色(active-tabの色)が一番下まで伸びる */
-  box-sizing: border-box;
+  background: var(--accent-light);
+  /* ★魔法のコード：ボックスシャドウで「触れない色」を下に伸ばす */
+  /* 100px下に同じ色の影を落とすことで、見た目だけ埋める */
+  box-shadow: 0 100px 0 var(--accent-light);
 }
-.active-tab { background: var(--accent); }
+
+/* 選択中のタブ：色を変える（影の色も変える） */
+.tabbar div.active-tab { 
+  background: var(--accent); 
+  box-shadow: 0 100px 0 var(--accent);
+}
 
 .particle { position: fixed; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 9999; }
 </style>
@@ -443,4 +449,3 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
