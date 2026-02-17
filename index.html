@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-<link rel="apple-touch-icon" href="icon.png">
+<link rel="apple-touch-icon" href="IMG_5293.jpeg">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;500;700&display=swap" rel="stylesheet">
 <title>Focus Timer</title>
 
@@ -27,8 +27,6 @@
   --keyboard-gray: #A0A0A0;
   --light-gray: #dddddd;
   --completed-bg: #dfdfdf;
-  
-  /* セーフエリア変数 */
   --safe-top: env(safe-area-inset-top, 20px);
   --safe-bottom: env(safe-area-inset-bottom, 20px);
 }
@@ -44,49 +42,30 @@ html, body {
 
 /* --- 画面レイアウト --- */
 .screen {
-  position: absolute; 
-  top: 0; left: 0; width: 100%; height: 100%; 
-  background: var(--bg); 
-  display: none; 
-  box-sizing: border-box;
-  
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+  background: var(--bg); display: none; box-sizing: border-box;
   padding-top: calc(15px + var(--safe-top)); 
-  padding-left: 15px;
-  padding-right: 15px;
+  padding-left: 15px; padding-right: 15px;
+  /* タブバーが浮いている分、下を空ける */
   padding-bottom: calc(90px + var(--safe-bottom));
-  
   overflow: hidden; 
 }
 .screen.active { display: block; }
 
-.center { 
-  display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; 
-}
-.title-logo { 
-  font-size: 32px; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 25px; 
-}
+.center { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+.title-logo { font-size: 32px; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 25px; }
 
 /* --- ボタン --- */
-button { 
-  border: none; border-radius: 999px; padding: 14px 28px; font-size: 16px; margin: 8px; 
-  cursor: pointer; font-family: inherit; transition: opacity 0.2s; 
-  -webkit-tap-highlight-color: transparent;
-  user-select: none; -webkit-user-select: none;
-}
+button { border: none; border-radius: 999px; padding: 14px 28px; font-size: 16px; margin: 8px; cursor: pointer; font-family: inherit; transition: opacity 0.2s; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 button:active { opacity: 0.7; }
 .primary { background: var(--accent); color: #fff; font-weight: bold; min-width: 120px; }
 .secondary { background: var(--keyboard-gray); color: #fff; font-weight: bold; min-width: 120px; }
-.complete-btn {
-  background: var(--soft-orange); color: #fff; font-weight: bold;
-  width: 80px; height: 80px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; padding: 0;
-  box-shadow: none;
-}
+.complete-btn { background: var(--soft-orange); color: #fff; font-weight: bold; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: none; }
 .delete-btn { background: var(--light-gray); color: #555; padding: 5px 12px; font-size: 12px; min-width: auto; margin-left: 10px; }
 .link-btn { background: none; color: var(--accent); text-decoration: underline; border: none; cursor: pointer; }
 .nav-btn { background: none; color: var(--accent); font-size: 18px; font-weight: bold; padding: 5px 15px; min-width: auto; margin: 0; }
 
-/* --- コンテンツ --- */
+/* --- リスト・カレンダー --- */
 #recordList { overflow-y: auto; height: 100%; -webkit-overflow-scrolling: touch; }
 .task { padding: 15px 12px; border-bottom: 1px solid #ddd; display: flex; align-items: center; background: #fff; border-radius: 10px; margin-bottom: 8px; }
 .task.completed-task { background: var(--completed-bg); color: #777; }
@@ -94,34 +73,16 @@ button:active { opacity: 0.7; }
 .task-title { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; margin-right: 15px; }
 .task-meta { font-size: 15px; color: #666; text-align: right; white-space: nowrap; font-weight: 700; }
 .status-tag { font-size: 10px; font-weight: 500; margin-left: 4px; padding: 2px 4px; border-radius: 4px; background: #eee; vertical-align: middle; }
-
-/* --- カレンダー --- */
-.calendar-grid { 
-  display: grid; grid-template-columns: repeat(7, 1fr); 
-  grid-auto-rows: 1fr; background: #fff; width: 100%; height: 100%; 
-  border-radius: 12px; border: 1px solid var(--border); 
-}
-.calendar-day { 
-  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); 
-  padding: 4px; display: flex; flex-direction: column; justify-content: flex-end; 
-  position: relative; overflow: hidden; cursor: pointer;
-}
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; background: #fff; width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--border); }
+.calendar-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 4px; display: flex; flex-direction: column; justify-content: flex-end; position: relative; overflow: hidden; cursor: pointer; }
 .day-num { font-size: 10px; font-weight: 700; color: var(--muted); position: absolute; top: 4px; left: 4px; }
 .day-num.sun { color: var(--sun-color); }
 .day-num.sat { color: var(--sat-color); }
 .grid-task-label { color: #fff; border-radius: 2px; width: 100%; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1px 2px; margin-top: 1px; text-align: center; font-weight: 500; flex-shrink: 0; z-index: 2; }
 
 /* --- モーダル --- */
-.modal-overlay { 
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-  background: rgba(0,0,0,0.4); display: none; z-index: 90; 
-  padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
-}
-.modal { 
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-  width: 85%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
-  display: none; flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box; text-align: center; 
-}
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; z-index: 90; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); display: none; flex-direction: column; padding: 24px 20px; z-index: 100; box-sizing: border-box; text-align: center; }
 #dayPopupContent { max-height: 250px; overflow-y: auto; margin: 15px 0; text-align: left; -webkit-overflow-scrolling: touch; }
 .popup-task-item { padding: 10px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; color: #fff; font-weight: 500; }
 .popup-task-item.complete { background-color: var(--accent); }
@@ -132,61 +93,43 @@ button:active { opacity: 0.7; }
 .time { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 52px; font-weight: 700; }
 input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; font-size: 16px; margin-bottom: 20px; font-family: inherit; }
 
-/* --- タブバー (横幅いっぱい拡大版) --- */
+/* --- タブバー (浮遊カプセル・横幅いっぱい) --- */
 .tabbar { 
   position: fixed; 
   bottom: calc(15px + env(safe-area-inset-bottom)); 
   left: 0; 
   width: 100%; 
-  height: auto;
   display: flex; 
-  /* ここ修正：中央寄せではなく、全体に広げる */
-  justify-content: space-between;
-  
-  /* 画面端との余白を最小限に設定 (左右10px) */
-  padding: 0 10px;
-  box-sizing: border-box; /* パディングを含めて幅100%にする */
-  
-  /* ボタン同士の隙間を少し狭める */
+  justify-content: space-between; 
+  padding: 0 10px; 
+  box-sizing: border-box; 
   gap: 8px; 
-  
-  background: transparent; 
   z-index: 999; 
   pointer-events: none; 
 }
-
 .tabbar div { 
   pointer-events: auto; 
-  
-  /* ここ修正：3等分して幅いっぱいに広げる */
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
+  flex: 1; /* 横幅いっぱいに広げる */
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
   background: #fff; 
   color: var(--muted); 
-  border: 1px solid transparent;
-  
-  /* パディングは上下のみ指定、横はflexで広がる */
-  padding: 14px 0;
-  
+  padding: 14px 0; 
   border-radius: 30px; 
   font-weight: 600; 
-  font-size: 13px;
+  font-size: 13px; 
   cursor: pointer; 
-  
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
   transform: scale(0.98); 
 }
-
 .tabbar div.active-tab { 
   background: var(--accent); 
   color: #fff; 
-  transform: scale(1.05); /* 選択時は少し大きく */
+  transform: scale(1.05); 
   box-shadow: 0 6px 16px rgba(142, 217, 182, 0.5); 
-  z-index: 10;
+  z-index: 10; 
 }
 
 .particle { position: fixed; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 9999; }
@@ -194,7 +137,6 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
 </head>
 
 <body>
-
 <div id="modalOverlay" class="modal-overlay" onclick="closeModals()"></div>
 
 <div id="titleScreen" class="screen active">
@@ -250,9 +192,7 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
           <h3 id="calendarMonth" style="margin:0;">年月</h3>
           <button class="nav-btn" onclick="changeMonth(1)">&#62;&#62;</button>
       </div>
-      <div style="flex-grow: 1; overflow: hidden;">
-          <div class="calendar-grid" id="calendarGrid"></div>
-      </div>
+      <div style="flex-grow: 1; overflow: hidden;"><div class="calendar-grid" id="calendarGrid"></div></div>
   </div>
 </div>
 
@@ -263,7 +203,9 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
 </div>
 
 <script>
-let state=null, totalSeconds=0, currentTask=null, animationId=null, startTimestamp=null, choiceTimestamp=null;
+// --- グローバル変数 ---
+// initialSeconds: 再開時に「元々あった時間」を保持する変数
+let state=null, totalSeconds=0, initialSeconds=0, currentTask=null, animationId=null, startTimestamp=null, choiceTimestamp=null;
 let pendingData = null; 
 let displayYear = new Date().getFullYear();
 let displayMonth = new Date().getMonth();
@@ -291,16 +233,22 @@ function playAlarm() {
 const prepDuration=60, autoContinueTimeout=180;
 const canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
 
+// --- 新規タスク開始 ---
 function startNewTask() {
     unlockAudio();
     const title = document.getElementById("titleInput").value.trim();
     if(!title) return;
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
     currentTask = { title: title, status: "active", seconds: 0, date: dateStr, id: Date.now() };
+    
+    // 新規なので持ち越し時間は0
+    initialSeconds = 0;
+    
     state = "prep"; totalSeconds = 0; startTimestamp = performance.now();
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
+// --- 記録からの再開 ---
 function startFromRecord(title, id) {
     unlockAudio();
     pendingData = { title: title, id: id };
@@ -314,44 +262,83 @@ function confirmResume(usePrep) {
     closeModals();
     const tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     const existing = tasks.find(t => t.id === pendingData.id);
-    const initialSeconds = existing ? existing.seconds : 0;
+    
+    // ★重要: 既存の時間を初期値として保持
+    initialSeconds = existing ? existing.seconds : 0;
+    
+    // 再開日の日付に更新
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
     currentTask = { title: pendingData.title, status: "active", seconds: initialSeconds, date: dateStr, id: pendingData.id };
-    state = usePrep ? "prep" : "work";
-    totalSeconds = initialSeconds; 
-    if (usePrep) { startTimestamp = performance.now(); } 
-    else { startTimestamp = performance.now() - (totalSeconds * 1000); }
+    
+    if (usePrep) {
+        state = "prep";
+        // Prepの場合は「今」から計測開始（totalSeconds = initialSeconds + 経過時間 となる）
+        startTimestamp = performance.now();
+    } else {
+        state = "work";
+        // Workの場合は「これまでの時間」を引いた時刻を起点にする
+        startTimestamp = performance.now() - (initialSeconds * 1000);
+    }
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
+// --- メインループ ---
 function animationLoop(){
     const now = performance.now();
+    
     if(state === "prep"){
         const elapsed = (now - startTimestamp) / 1000;
         let progress = Math.min(elapsed / prepDuration, 1);
         drawCircle(progress);
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
-        if(elapsed >= prepDuration){ state = "choice"; totalSeconds += 60; choiceTimestamp = now; playAlarm(); renderButtons(); }
+        
+        // ★重要: Prep中も合計時間(初期値+経過)を計算し、常にcurrentTaskに反映する
+        // これにより、途中でやめても時間が保存される
+        totalSeconds = initialSeconds + Math.floor(elapsed);
+        if(currentTask) currentTask.seconds = totalSeconds;
+        
+        if(elapsed >= prepDuration){
+            state = "choice";
+            // Prep完了時：初期値(initialSeconds)を更新しておく（Choice中の待機時間を足すため）
+            initialSeconds = totalSeconds;
+            choiceTimestamp = now;
+            playAlarm(); renderButtons();
+        }
     } else if(state === "choice"){
+        // Choice中は時間は進まない（表示0:00）
         const waitTime = Math.floor((now - choiceTimestamp) / 1000);
         updateDisplay(0);
+        
         if(waitTime >= autoContinueTimeout) continueTask();
     } else if(state === "work"){
-        totalSeconds = Math.floor((now - startTimestamp) / 1000);
-        drawCircle(1); updateDisplay(totalSeconds);
+        const elapsedTotal = Math.floor((now - startTimestamp) / 1000);
+        totalSeconds = elapsedTotal;
+        drawCircle(1); 
+        updateDisplay(totalSeconds);
+        
+        // Work中も常に反映
+        if(currentTask) currentTask.seconds = totalSeconds;
     }
-    if(currentTask && state !== "choice") currentTask.seconds = totalSeconds;
+    
     animationId = requestAnimationFrame(animationLoop);
 }
 
 function continueTask(){
     unlockAudio();
     const now = performance.now();
+    // 待機していた時間
     const waitTime = Math.floor((now - choiceTimestamp) / 1000);
-    state = "work"; totalSeconds += waitTime; startTimestamp = now - (totalSeconds * 1000);
+    
+    state = "work"; 
+    // Choice中に経過した時間も加算してWorkを開始
+    // initialSecondsはPrep完了時点の時間
+    // ここで startTimestamp を再計算: now - ((ここまで累積時間 + 待機時間) * 1000)
+    startTimestamp = now - ((initialSeconds + waitTime) * 1000);
+    
     renderButtons();
 }
 
+// --- データ保存 ---
 function saveTask(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     const idx = tasks.findIndex(t => t.id === currentTask.id);
@@ -359,20 +346,35 @@ function saveTask(){
     localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
+// --- UI描画系 ---
 function renderRecords(){
     let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
     let list = document.getElementById("recordList"); list.innerHTML = "";
+    
     const incompleteTasks = tasks.filter(t => t.status !== 'complete');
     const completeTasks = tasks.filter(t => t.status === 'complete');
     const sortedTasks = [...incompleteTasks, ...completeTasks];
+
     sortedTasks.forEach((t) => {
         let div = document.createElement("div");
         div.className = `task ${t.status === 'complete' ? 'completed-task' : ''}`;
-        div.innerHTML = `<div class="task-info" onclick="startFromRecord('${t.title}', ${t.id})"><div class="task-title">${t.title}</div><div class="task-meta">${formatTimeHHMM(t.seconds)}<span class="status-tag">${t.status === 'complete' ? '完了' : '未完'}</span></div></div><button class="delete-btn" onclick="deleteTask(event, ${t.id})">削除</button>`;
+        div.innerHTML = `
+            <div class="task-info" onclick="startFromRecord('${t.title}', ${t.id})">
+                <div class="task-title">${t.title}</div>
+                <div class="task-meta">${formatTimeHHMM(t.seconds)}<span class="status-tag">${t.status === 'complete' ? '完了' : '未完'}</span></div>
+            </div>
+            <button class="delete-btn" onclick="deleteTask(event, ${t.id})">削除</button>
+        `;
         list.appendChild(div);
     });
 }
-function deleteTask(e, id) { e.stopPropagation(); let tasks = JSON.parse(localStorage.getItem("tasks") || "[]"); localStorage.setItem("tasks", JSON.stringify(tasks.filter(t => t.id !== id))); renderRecords(); }
+
+function deleteTask(e, id) {
+    e.stopPropagation();
+    let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+    localStorage.setItem("tasks", JSON.stringify(tasks.filter(t => t.id !== id)));
+    renderRecords();
+}
 
 function changeMonth(offset) {
     displayMonth += offset;
@@ -381,47 +383,61 @@ function changeMonth(offset) {
     displayMonth = d.getMonth();
     renderCalendar();
 }
+
 function renderCalendar(){
     const grid=document.getElementById("calendarGrid");
     const monthLabel=document.getElementById("calendarMonth");
-    grid.innerHTML=""; monthLabel.innerText=`${displayYear}年 ${displayMonth+1}月`;
+    grid.innerHTML=""; 
+    monthLabel.innerText=`${displayYear}年 ${displayMonth+1}月`;
+    
     const firstDay = new Date(displayYear, displayMonth, 1).getDay();
     const daysInMonth = new Date(displayYear, displayMonth+1, 0).getDate();
     const tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
+
     for(let i=0;i<firstDay;i++) grid.appendChild(document.createElement("div")).className="calendar-day";
     for(let d=1;d<=daysInMonth;d++){
         const dateStr=`${displayYear}-${(displayMonth+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
         const dayTasks=tasks.filter(t=>t.date===dateStr);
         const div=document.createElement("div"); 
-        div.className="calendar-day"; div.onclick = () => showDayDetails(dateStr, d);
+        div.className="calendar-day";
+        div.onclick = () => showDayDetails(dateStr, d);
+        
         const weekDay = new Date(displayYear, displayMonth, d).getDay();
         let dayClass=""; if(weekDay===0) dayClass="sun"; if(weekDay===6) dayClass="sat";
+        
         div.innerHTML=`<span class="day-num ${dayClass}">${d}</span>`;
         dayTasks.slice(0,4).forEach(t=>{
-            const label=document.createElement("div"); label.className="grid-task-label";
+            const label=document.createElement("div"); 
+            label.className="grid-task-label";
             label.style.backgroundColor = t.status==='complete'?'var(--accent)':'var(--purple)';
-            label.innerText=t.title; div.appendChild(label);
+            label.innerText=t.title;
+            div.appendChild(label);
         });
         grid.appendChild(div);
     }
 }
+
 function showDayDetails(dateStr, dayNum){
     const tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
     const dayTasks=tasks.filter(t=>t.date===dateStr);
     const content=document.getElementById("dayPopupContent");
     document.getElementById("popupDateDisplay").innerText=`${dayNum}日の詳細`;
     content.innerHTML="";
-    if(dayTasks.length === 0){ content.innerHTML = "<p style='text-align:center; color:#999;'>記録がありません</p>"; } 
-    else {
+    if(dayTasks.length === 0){
+        content.innerHTML = "<p style='text-align:center; color:#999;'>記録がありません</p>";
+    } else {
         dayTasks.forEach(t => {
-            const item = document.createElement("div"); item.className = `popup-task-item ${t.status === 'complete' ? 'complete' : 'incomplete'}`;
+            const item = document.createElement("div");
+            item.className = `popup-task-item ${t.status === 'complete' ? 'complete' : 'incomplete'}`;
             item.innerHTML = `<span>${t.title}</span><span>${formatTimeHHMM(t.seconds)}</span>`;
             content.appendChild(item);
         });
     }
-    document.getElementById("dayPopup").style.display = "flex"; document.getElementById("modalOverlay").style.display = "block";
+    document.getElementById("dayPopup").style.display = "flex";
+    document.getElementById("modalOverlay").style.display = "block";
 }
 
+// --- 共通ユーティリティ ---
 function formatTimeHHMM(s) { const m = Math.floor(s/60), mm = m % 60, hh = Math.floor(m/60); return `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`; }
 function updateDisplay(s){ let min=Math.floor(s/60), sec=s%60; document.getElementById("timeDisplay").innerText=`${min}:${sec.toString().padStart(2,"0")}`; }
 function drawCircle(p){ ctx.clearRect(0,0,260,260); ctx.lineWidth=10; ctx.strokeStyle="#f0f0f0"; ctx.beginPath(); ctx.arc(130,130,110,0,Math.PI*2); ctx.stroke(); ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent'); ctx.lineCap='round'; ctx.beginPath(); ctx.arc(130,130,110,-Math.PI/2,(Math.PI*2*p)-Math.PI/2); ctx.stroke(); }
@@ -441,13 +457,17 @@ function handleTimerTab(){ updateTabs('tabTimer'); showScreen(state ? "timerScre
 function openRecordTab(){ updateTabs('tabRecord'); showScreen("recordScreen"); renderRecords(); }
 function openCalendarTab(){ updateTabs('tabCalendar'); showScreen("calendarScreen"); renderCalendar(); }
 function fireConfetti(){ const colors=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#F473B9']; for(let i=0;i<70;i++){ const p=document.createElement('div'); p.classList.add('particle'); p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)]; const angle=Math.random()*Math.PI*2, vel=80+Math.random()*180; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(angle)*vel}px),calc(-50% + ${Math.sin(angle)*vel}px)) scale(1.5)`,opacity:0}],{duration:1200,easing:'ease-out'}).onfinish=()=>p.remove(); } }
-function showResume(){ showScreen("recordScreen"); openRecordTab(); }
 
+// --- オートセーブ/ロード ---
 window.addEventListener('load', () => {
     const now = new Date(); displayYear = now.getFullYear(); displayMonth = now.getMonth();
     const session = localStorage.getItem("active_session");
     if(session) {
-        const s = JSON.parse(session); state=s.state; currentTask=s.currentTask; totalSeconds=s.totalSeconds;
+        const s = JSON.parse(session); 
+        state=s.state; currentTask=s.currentTask; totalSeconds=s.totalSeconds; 
+        // ★重要: 復元時もinitialSecondsを読み込む
+        initialSeconds = s.initialSeconds || 0;
+        
         if(state === 'work') { startTimestamp = performance.now() - (totalSeconds * 1000); } 
         else if (state === 'prep') { const elapsedPrep = (s.elapsedPrep || 0); startTimestamp = performance.now() - (elapsedPrep * 1000); } 
         else if (state === 'choice') { choiceTimestamp = performance.now() - ((s.elapsedChoice || 0) * 1000); }
@@ -458,7 +478,7 @@ window.addEventListener('load', () => {
 window.addEventListener('beforeunload', () => {
     if(state && currentTask) {
         const data = {
-            state, currentTask, totalSeconds,
+            state, currentTask, totalSeconds, initialSeconds, // ★重要: initialSecondsも保存
             elapsedPrep: (state === 'prep') ? (performance.now() - startTimestamp) / 1000 : 0,
             elapsedChoice: (state === 'choice') ? (performance.now() - choiceTimestamp) / 1000 : 0
         };
