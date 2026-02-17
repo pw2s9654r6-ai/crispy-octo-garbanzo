@@ -46,7 +46,7 @@ html, body {
   background: var(--bg); display: none; box-sizing: border-box;
   padding-top: calc(15px + var(--safe-top)); 
   padding-left: 15px; padding-right: 15px;
-  /* タブバーが浮いている分、下を空ける */
+  /* タブバーの浮き分 + 余白 */
   padding-bottom: calc(90px + var(--safe-bottom));
   overflow: hidden; 
 }
@@ -109,7 +109,7 @@ input { padding: 14px; border-radius: 12px; border: 1px solid #ccc; width: 85%; 
 }
 .tabbar div { 
   pointer-events: auto; 
-  flex: 1; /* 横幅いっぱいに広げる */
+  flex: 1; 
   display: flex; 
   align-items: center; 
   justify-content: center; 
@@ -264,21 +264,33 @@ function confirmResume(usePrep) {
     const existing = tasks.find(t => t.id === pendingData.id);
     
     // ★重要: 既存の時間を初期値として保持
+    // 完了済み(complete)であっても、その秒数をinitialSecondsに入れることで0リセットを防ぐ
     initialSeconds = existing ? existing.seconds : 0;
     
-    // 再開日の日付に更新
+    // 再開日の日付に更新 (IDは同じものを使い、上書き保存する)
     const d = new Date(), dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
     currentTask = { title: pendingData.title, status: "active", seconds: initialSeconds, date: dateStr, id: pendingData.id };
+    
+    // 現在の合計時間を更新し、即座に画面に反映（ループ開始前の0秒表示チラつき防止）
+    totalSeconds = initialSeconds;
     
     if (usePrep) {
         state = "prep";
         // Prepの場合は「今」から計測開始（totalSeconds = initialSeconds + 経過時間 となる）
         startTimestamp = performance.now();
+        // Prep中の円描画初期化
+        drawCircle(0);
+        updateDisplay(prepDuration); // Prepは残り時間を表示
     } else {
         state = "work";
         // Workの場合は「これまでの時間」を引いた時刻を起点にする
         startTimestamp = performance.now() - (initialSeconds * 1000);
+        
+        // Work再開時は即座に円と時間を完了時点の状態で描画
+        drawCircle(1);
+        updateDisplay(totalSeconds);
     }
+    
     showScreen("timerScreen"); renderButtons(); animationLoop();
 }
 
@@ -290,33 +302,31 @@ function animationLoop(){
         const elapsed = (now - startTimestamp) / 1000;
         let progress = Math.min(elapsed / prepDuration, 1);
         drawCircle(progress);
+        // Prep中はカウントダウン
         updateDisplay(Math.max(0, Math.ceil(prepDuration - elapsed)));
         
-        // ★重要: Prep中も合計時間(初期値+経過)を計算し、常にcurrentTaskに反映する
-        // これにより、途中でやめても時間が保存される
+        // 裏では合計時間(初期値+経過)を計算し、常にcurrentTaskに反映する
         totalSeconds = initialSeconds + Math.floor(elapsed);
         if(currentTask) currentTask.seconds = totalSeconds;
         
         if(elapsed >= prepDuration){
             state = "choice";
-            // Prep完了時：初期値(initialSeconds)を更新しておく（Choice中の待機時間を足すため）
+            // Prep完了時：初期値(initialSeconds)を更新しておく
             initialSeconds = totalSeconds;
             choiceTimestamp = now;
             playAlarm(); renderButtons();
         }
     } else if(state === "choice"){
-        // Choice中は時間は進まない（表示0:00）
         const waitTime = Math.floor((now - choiceTimestamp) / 1000);
-        updateDisplay(0);
+        updateDisplay(0); // 選択中は0:00固定
         
         if(waitTime >= autoContinueTimeout) continueTask();
     } else if(state === "work"){
         const elapsedTotal = Math.floor((now - startTimestamp) / 1000);
         totalSeconds = elapsedTotal;
         drawCircle(1); 
-        updateDisplay(totalSeconds);
+        updateDisplay(totalSeconds); // Work中は経過時間を表示
         
-        // Work中も常に反映
         if(currentTask) currentTask.seconds = totalSeconds;
     }
     
@@ -326,13 +336,10 @@ function animationLoop(){
 function continueTask(){
     unlockAudio();
     const now = performance.now();
-    // 待機していた時間
     const waitTime = Math.floor((now - choiceTimestamp) / 1000);
     
     state = "work"; 
     // Choice中に経過した時間も加算してWorkを開始
-    // initialSecondsはPrep完了時点の時間
-    // ここで startTimestamp を再計算: now - ((ここまで累積時間 + 待機時間) * 1000)
     startTimestamp = now - ((initialSeconds + waitTime) * 1000);
     
     renderButtons();
@@ -356,10 +363,13 @@ function renderRecords(){
     const sortedTasks = [...incompleteTasks, ...completeTasks];
 
     sortedTasks.forEach((t) => {
+        // タイトルに引用符が含まれていても壊れないようにエスケープ処理
+        const safeTitle = t.title.replace(/'/g, "\\'"); 
+        
         let div = document.createElement("div");
         div.className = `task ${t.status === 'complete' ? 'completed-task' : ''}`;
         div.innerHTML = `
-            <div class="task-info" onclick="startFromRecord('${t.title}', ${t.id})">
+            <div class="task-info" onclick="startFromRecord('${safeTitle}', ${t.id})">
                 <div class="task-title">${t.title}</div>
                 <div class="task-meta">${formatTimeHHMM(t.seconds)}<span class="status-tag">${t.status === 'complete' ? '完了' : '未完'}</span></div>
             </div>
@@ -438,8 +448,12 @@ function showDayDetails(dateStr, dayNum){
 }
 
 // --- 共通ユーティリティ ---
+// 表示を元のHH:MM形式に戻しました
 function formatTimeHHMM(s) { const m = Math.floor(s/60), mm = m % 60, hh = Math.floor(m/60); return `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`; }
+
+// タイマー用の表示（こちらは秒まで出す）
 function updateDisplay(s){ let min=Math.floor(s/60), sec=s%60; document.getElementById("timeDisplay").innerText=`${min}:${sec.toString().padStart(2,"0")}`; }
+
 function drawCircle(p){ ctx.clearRect(0,0,260,260); ctx.lineWidth=10; ctx.strokeStyle="#f0f0f0"; ctx.beginPath(); ctx.arc(130,130,110,0,Math.PI*2); ctx.stroke(); ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent'); ctx.lineCap='round'; ctx.beginPath(); ctx.arc(130,130,110,-Math.PI/2,(Math.PI*2*p)-Math.PI/2); ctx.stroke(); }
 function renderButtons(){
     const container=document.getElementById("buttons"); container.innerHTML="";
@@ -465,7 +479,6 @@ window.addEventListener('load', () => {
     if(session) {
         const s = JSON.parse(session); 
         state=s.state; currentTask=s.currentTask; totalSeconds=s.totalSeconds; 
-        // ★重要: 復元時もinitialSecondsを読み込む
         initialSeconds = s.initialSeconds || 0;
         
         if(state === 'work') { startTimestamp = performance.now() - (totalSeconds * 1000); } 
@@ -478,7 +491,7 @@ window.addEventListener('load', () => {
 window.addEventListener('beforeunload', () => {
     if(state && currentTask) {
         const data = {
-            state, currentTask, totalSeconds, initialSeconds, // ★重要: initialSecondsも保存
+            state, currentTask, totalSeconds, initialSeconds, 
             elapsedPrep: (state === 'prep') ? (performance.now() - startTimestamp) / 1000 : 0,
             elapsedChoice: (state === 'choice') ? (performance.now() - choiceTimestamp) / 1000 : 0
         };
@@ -488,3 +501,4 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
